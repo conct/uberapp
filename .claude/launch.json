@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "uberapp-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "web",
+        "-w",
+        "@uberapp/mobile",
+        "--",
+        "--port",
+        "8090"
+      ],
+      "port": 8090,
+      "autoPort": false
+    }
+  ]
+}

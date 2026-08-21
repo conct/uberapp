@@ -1,0 +1,28 @@
+{
+  "name": "@uberapp/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Uberapp agent: WebSocket control plane running on the Uberspace host",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@uberapp/protocol": "*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

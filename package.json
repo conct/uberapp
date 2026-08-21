@@ -1,0 +1,22 @@
+{
+  "name": "uberapp",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Helper app for Uberspace 7 — Expo client + on-server WebSocket agent",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:protocol": "npm run build -w @uberapp/protocol",
+    "build:agent": "npm run build -w @uberapp/agent",
+    "build": "npm run build:protocol && npm run build:agent",
+    "dev:agent": "npm run dev -w @uberapp/agent",
+    "app": "npm run start -w @uberapp/mobile",
+    "typecheck": "tsc -b packages/protocol packages/agent",
+    "test": "npm run test -w @uberapp/agent"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
