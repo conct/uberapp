@@ -14,13 +14,19 @@ import { run } from '../exec.js';
 import { RpcError, type Handler } from '../rpc.js';
 import { asObject, requireString } from '../validate.js';
 
-/** The paths the manual points at when quota does not add up. */
+/**
+ * The paths worth measuring when the quota does not add up.
+ *
+ * The manual's own command also lists /tmp and /var/tmp. Those are deliberately
+ * left out here: on a shared host they hold every other account's files, so
+ * `du` walks a tree that is neither ours nor bounded — measured on a live host
+ * it did not finish inside twenty seconds, while the account's own directories
+ * take about three. What we measure has to be what we own.
+ */
 export function usagePaths(config: AgentConfig): string[] {
   return [
     config.home,
     `/var/www/virtual/${config.user}`,
-    '/tmp',
-    '/var/tmp',
     `/var/lib/php-sessions/${config.user}`,
   ];
 }

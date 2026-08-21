@@ -84,13 +84,30 @@ function parseSize(value: string | undefined): number | null {
 };
 
 const quota: Handler = async () => {
-  const result = await run('quota', ['-gs']);
+  // -l keeps quota to local filesystems. Without it, it also queries the NFS
+  // quota server, which on some hosts is unreachable and only adds noise.
+  const result = await run('quota', ['-gsl']);
   // quota exits 1 when a limit is exceeded, which is exactly when the user
   // most wants to see the numbers.
   if (!result.stdout.trim() && !result.ok) {
     throw RpcError.commandFailed('Could not read quota', result.stderr);
   }
-  return parseQuota(result.stdout);
+
+  const parsed = parseQuota(result.stdout);
+
+  // Empty output is not "zero used" — it is quota finding no group to report
+  // on. supervisord starts the agent without supplementary groups, and the
+  // Uberspace quota is a group quota, so `quota -g` sees nothing at all. Say
+  // that rather than reporting a comfortable-looking 0.
+  if (!parsed.raw.trim()) {
+    throw RpcError.commandFailed(
+      'The quota is a group quota, and this process was started without its group, so quota reports nothing.',
+      'Uberspace supervisord starts services with an empty supplementary group list. ' +
+        'Disk usage under Diagnose still works — it measures the directories directly.',
+    );
+  }
+
+  return parsed;
 };
 
 const processes: Handler = async (_params, ctx) => {

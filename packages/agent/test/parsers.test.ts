@@ -8,7 +8,9 @@ import { shouldRestart } from '../src/handlers/certs.js';
 import { parseQuota } from '../src/handlers/system.js';
 import {
   buildServiceIni,
+  decodePairing,
   describeSchedule,
+  encodePairing,
   isOwnDatabase,
   isValidEmail,
   isValidHeaderValue,
@@ -40,6 +42,7 @@ import {
   parseShells,
 } from '../src/handlers/diagnostics.js';
 import { missingHandlers, strayHandlers } from '../src/handlers/registry.js';
+import { digestsMatch, hashToken, isExpired, prune } from '../src/tokens.js';
 import { shellQuote } from '../src/exec.js';
 
 describe('parseStatus', () => {
@@ -818,5 +821,102 @@ describe('parseMemory', () => {
 describe('parseShells', () => {
   it('keeps only absolute paths', () => {
     assert.deepEqual(parseShells('/bin/bash\n/bin/zsh\nnot a shell\n'), ['/bin/bash', '/bin/zsh']);
+  });
+});
+
+describe('parseQuota on a host without the group', () => {
+  it('reports nothing parsed rather than zero used', () => {
+    // supervisord strips supplementary groups, so `quota -g` prints nothing at
+    // all. The handler turns this into an error; the parser must at least not
+    // claim a confident 0 with a real limit.
+    const quota = parseQuota('');
+    assert.equal(quota.used, 0);
+    assert.equal(quota.limit, null);
+    assert.equal(quota.raw, '');
+  });
+
+  it('parses the real output from an Uberspace host', () => {
+    const output = [
+      'Disk quotas for group isabell (gid 1234): ',
+      '     Filesystem   space   quota   limit   grace   files   quota   limit   grace',
+      '      /dev/sda2   6343M  10240M  11264M            281k       0       0        ',
+    ].join('\n');
+
+    const quota = parseQuota(output);
+    assert.equal(quota.used, 6343 * 1024 ** 2);
+    assert.equal(quota.limit, 10240 * 1024 ** 2);
+    assert.equal(quota.percent, 61.9);
+  });
+});
+
+describe('decodePairing', () => {
+  const valid = {
+    v: 1 as const,
+    url: 'wss://isabell.uber.space/uberapp',
+    token: 'a'.repeat(43),
+    exp: 1_800_000_000_000,
+  };
+
+  it('round-trips a pairing payload', () => {
+    assert.deepEqual(decodePairing(encodePairing(valid)), valid);
+  });
+
+  it('accepts a payload without an expiry', () => {
+    const decoded = decodePairing(encodePairing({ ...valid, exp: null }));
+    assert.equal(decoded?.exp, null);
+  });
+
+  it('returns null for anything that is not a pairing code', () => {
+    // A camera pointed at the world reads all sorts of things; none of them
+    // should reach the connection logic.
+    for (const text of [
+      'https://example.com',
+      'not json at all',
+      '{}',
+      JSON.stringify({ ...valid, v: 2 }),
+      JSON.stringify({ ...valid, url: 'http://example.com' }),
+      JSON.stringify({ ...valid, token: 'too-short' }),
+      JSON.stringify({ ...valid, url: 42 }),
+    ]) {
+      assert.equal(decodePairing(text), null, text.slice(0, 40));
+    }
+  });
+});
+
+describe('token store helpers', () => {
+  it('treats a passed expiry as expired and a future one as live', () => {
+    const now = 1_000_000;
+    assert.equal(isExpired({ expiresAt: now - 1 }, now), true);
+    assert.equal(isExpired({ expiresAt: now + 1 }, now), false);
+    assert.equal(isExpired({ expiresAt: now }, now), true);
+  });
+
+  it('never expires a token without an expiry', () => {
+    assert.equal(isExpired({ expiresAt: null }), false);
+  });
+
+  it('prunes exactly the dead entries', () => {
+    const now = 1_000_000;
+    const entries = [
+      { id: 'a', hash: '', label: null, createdAt: 0, expiresAt: now - 1, lastUsedAt: null },
+      { id: 'b', hash: '', label: null, createdAt: 0, expiresAt: now + 1, lastUsedAt: null },
+      { id: 'c', hash: '', label: null, createdAt: 0, expiresAt: null, lastUsedAt: null },
+    ];
+    assert.deepEqual(
+      prune(entries, now).map((entry) => entry.id),
+      ['b', 'c'],
+    );
+  });
+
+  it('hashes deterministically and differently per token', () => {
+    assert.equal(hashToken('abc'), hashToken('abc'));
+    assert.notEqual(hashToken('abc'), hashToken('abd'));
+    assert.match(hashToken('abc'), /^[0-9a-f]{64}$/);
+  });
+
+  it('compares digests without throwing on a length mismatch', () => {
+    assert.equal(digestsMatch(hashToken('abc'), hashToken('abc')), true);
+    assert.equal(digestsMatch(hashToken('abc'), hashToken('abd')), false);
+    assert.equal(digestsMatch(hashToken('abc'), 'ff'), false);
   });
 });

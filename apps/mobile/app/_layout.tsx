@@ -65,6 +65,7 @@ export default function RootLayout() {
         <Stack.Screen name="web-extras" options={{ title: 'Web-Details' }} />
         <Stack.Screen name="diagnostics" options={{ title: 'Diagnose' }} />
         <Stack.Screen name="cron" options={{ title: 'Cron' }} />
+        <Stack.Screen name="pair" options={{ title: 'Gerät koppeln' }} />
       </Stack>
     </SafeAreaProvider>
   );

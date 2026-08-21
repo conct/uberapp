@@ -135,7 +135,7 @@ function DiskCard() {
         <Body style={{ fontWeight: '700' }}>Summe: {formatBytes(total)}</Body>
       ) : null}
       <InfoBanner
-        message={`Ordner mit den Namen ${BACKUP_EXCLUDED_DIRS.join(', ')} zählen zwar zur Quota, werden aber nicht gesichert.`}
+        message={`Gemessen werden nur die Verzeichnisse, die dir gehören — /tmp und /var/tmp sind auf einem geteilten Host voll mit fremden Dateien und dauern zu lange. Ordner mit den Namen ${BACKUP_EXCLUDED_DIRS.join(', ')} zählen zwar zur Quota, werden aber nicht gesichert.`}
       />
     </Card>
   );

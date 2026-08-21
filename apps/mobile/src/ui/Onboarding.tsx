@@ -62,6 +62,7 @@ export function OnboardingOverlay({
   onDismiss,
   insecureStorage,
   onApplyUrl,
+  agentReachable = false,
 }: {
   visible: boolean;
   onDismiss: () => void;
@@ -69,6 +70,13 @@ export function OnboardingOverlay({
   insecureStorage: boolean;
   /** Hand the finished agent address to the login form. */
   onApplyUrl?: (url: string) => void;
+  /**
+   * An agent is already answering. The setup steps then collapse to a single
+   * line — they describe work that is demonstrably done, and leaving them
+   * open invites someone to redo it. The storage warning stays either way:
+   * it is about the token, not about the installation.
+   */
+  agentReachable?: boolean;
 }) {
   const theme = useTheme();
 
@@ -99,6 +107,16 @@ export function OnboardingOverlay({
 
   const agentUrl = `https://${values.shownDomain}`;
 
+  // The fast path: one command on your own machine that does everything on the
+  // host — copy, build, service, web backend — and verifies the result.
+  const setupCommand = [
+    `git clone ${REPO_URL} && cd uberapp`,
+    `npm run setup -- ${values.shownUser}@${values.shownHost}` +
+      (values.domain ? ` --domain ${values.shownDomain}` : ''),
+  ].join('\n');
+
+  // Kept for people who would rather see each step, and for hosts where the
+  // setup tool cannot run.
   const installCommand = [
     `ssh ${values.shownUser}@${values.shownHost}`,
     `git clone ${REPO_URL} ~/uberapp && cd ~/uberapp`,
@@ -135,7 +153,10 @@ export function OnboardingOverlay({
             overflow: 'hidden',
           }}
         >
-          <Header theme={theme} />
+          <Header
+            theme={theme}
+            subtitle={agentReachable ? 'Bereits eingerichtet' : 'Zwei Schritte, einmalig'}
+          />
 
           <ScrollView
             contentContainerStyle={{ padding: spacing.xl, gap: spacing.xl }}
@@ -143,11 +164,12 @@ export function OnboardingOverlay({
             showsVerticalScrollIndicator
           >
             <Text style={{ color: theme.textMuted, fontSize: 15, lineHeight: 22 }}>
-              Diese App steuert deinen Uberspace nicht per SSH, sondern über einen kleinen Agenten,
-              der dort läuft. Trag unten deine Daten ein — die Befehle passen sich an und lassen
-              sich direkt kopieren.
+              {agentReachable
+                ? 'Ein Agent antwortet bereits — eingerichtet ist alles. Die Installationsschritte sind deshalb ausgeblendet.'
+                : 'Diese App steuert deinen Uberspace nicht per SSH, sondern über einen kleinen Agenten, der dort läuft. Trag unten deine Daten ein — die Befehle passen sich an und lassen sich direkt kopieren.'}
             </Text>
 
+            {agentReachable ? null : (
             <View
               style={{
                 backgroundColor: theme.surfaceAlt,
@@ -192,22 +214,41 @@ export function OnboardingOverlay({
                 </Text>
               ) : null}
             </View>
+            )}
 
+            {agentReachable ? null : (
             <Step
               theme={theme}
               number={1}
-              title="Agent auf dem Uberspace installieren"
-              body="Per SSH einloggen und das Installationsskript ausführen. Es baut den Agenten, legt einen supervisord-Service an und erzeugt ein Token."
+              title="Ein Befehl, auf deinem Rechner"
+              body={
+                'Das Setup-Werkzeug kopiert das Projekt auf den Uberspace, baut den Agenten, ' +
+                'legt den supervisord-Service an, richtet das Web-Backend ein und prüft am Ende, ' +
+                'ob der Endpunkt antwortet. Es nutzt dein vorhandenes SSH — die App selbst ' +
+                'braucht dafür keinen Schlüssel.'
+              }
             >
-              <CommandBlock theme={theme} text={installCommand} />
+              <CommandBlock theme={theme} text={setupCommand} />
+              <Text style={{ color: theme.textMuted, fontSize: 13, lineHeight: 20 }}>
+                {values.domain
+                  ? 'Für eine eigene Domain muss der DNS-Eintrag beim Registrar schon stehen.'
+                  : `Ohne Domain landet der Agent auf ${values.shownUser}.uber.space/uberapp — das braucht kein DNS und funktioniert sofort.`}
+              </Text>
             </Step>
+            )}
 
+            {agentReachable ? null : (
             <Step
               theme={theme}
-              number={2}
-              title="Von außen erreichbar machen"
-              body={`Der Agent lauscht nur intern auf Port ${AGENT_PORT}. Eine Domain muss darauf zeigen — damit bekommt er auch das Let's-Encrypt-Zertifikat deines Accounts.`}
+              number={null}
+              title="Lieber jeden Schritt einzeln?"
+              body={
+                'Derselbe Ablauf von Hand, falls das Werkzeug bei dir nicht laufen kann. Der ' +
+                `Agent lauscht nur intern auf Port ${AGENT_PORT}, eine Domain muss darauf zeigen — ` +
+                "damit bekommt er auch das Let's-Encrypt-Zertifikat deines Accounts."
+              }
             >
+              <CommandBlock theme={theme} text={installCommand} />
               <CommandBlock theme={theme} text={exposeCommand} />
               <Text style={{ color: theme.textMuted, fontSize: 13, lineHeight: 20 }}>
                 Danach prüfen, ob er antwortet. Bis das Zertifikat ausgestellt ist, dauert es ein
@@ -215,10 +256,12 @@ export function OnboardingOverlay({
               </Text>
               <CommandBlock theme={theme} text={testCommand} />
             </Step>
+            )}
 
+            {agentReachable ? null : (
             <Step
               theme={theme}
-              number={3}
+              number={2}
               title="Hier verbinden"
               body={
                 'Das Installationsskript zeigt am Ende das Token an. Adresse und Token unten ' +
@@ -243,6 +286,7 @@ export function OnboardingOverlay({
                 }}
               />
             </Step>
+            )}
 
             {insecureStorage ? <StorageWarning theme={theme} /> : null}
           </ScrollView>
@@ -254,7 +298,7 @@ export function OnboardingOverlay({
   );
 }
 
-function Header({ theme }: { theme: Theme }) {
+function Header({ theme, subtitle }: { theme: Theme; subtitle: string }) {
   return (
     <View
       style={{
@@ -267,9 +311,7 @@ function Header({ theme }: { theme: Theme }) {
       <Text style={{ color: theme.accentText, fontSize: 20, fontWeight: '800' }}>
         Uberapp einrichten
       </Text>
-      <Text style={{ color: theme.accentText, fontSize: 13, opacity: 0.85 }}>
-        Drei Schritte, einmalig
-      </Text>
+      <Text style={{ color: theme.accentText, fontSize: 13, opacity: 0.85 }}>{subtitle}</Text>
     </View>
   );
 }
@@ -282,7 +324,12 @@ function Step({
   children,
 }: {
   theme: Theme;
-  number: number;
+  /**
+   * Null for a block that is an alternative rather than a stage. A number on
+   * something you do instead of, not after, the previous item would say
+   * something untrue about the order.
+   */
+  number: number | null;
   title: string;
   body: string;
   children?: ReactNode;
@@ -294,12 +341,22 @@ function Step({
           width: 28,
           height: 28,
           borderRadius: 14,
-          backgroundColor: theme.accent,
+          backgroundColor: number === null ? 'transparent' : theme.accent,
+          borderWidth: number === null ? StyleSheet.hairlineWidth : 0,
+          borderColor: theme.border,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Text style={{ color: theme.accentText, fontWeight: '800', fontSize: 14 }}>{number}</Text>
+        <Text
+          style={{
+            color: number === null ? theme.textFaint : theme.accentText,
+            fontWeight: '800',
+            fontSize: 14,
+          }}
+        >
+          {number ?? '·'}
+        </Text>
       </View>
 
       <View style={{ flex: 1, gap: spacing.sm }}>

@@ -1,4 +1,4 @@
-import type { ErrorCode } from '@uberapp/protocol';
+import type { AuthInfo, ErrorCode } from '@uberapp/protocol';
 import type { AgentConfig } from './config.js';
 
 export class RpcError extends Error {
@@ -27,6 +27,12 @@ export class RpcError extends Error {
 
 export interface CallContext {
   config: AgentConfig;
+  /**
+   * Which credential opened this connection. Only auth.* looks at it, but it
+   * belongs on the context rather than in a closure so a future handler that
+   * needs to distinguish a paired client from the original one can.
+   */
+  auth: AuthInfo;
   /** Streaming handlers push output through this. */
   emit(stream: 'stdout' | 'stderr', data: string): void;
   /** Register cleanup to run if the client cancels or disconnects. */

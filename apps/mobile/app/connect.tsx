@@ -4,7 +4,9 @@
 
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
+
+import { decodePairing } from '@uberapp/protocol';
 
 import { client, httpUrl, normalizeUrl } from '../src/api/client';
 import { useConnection } from '../src/api/hooks';
@@ -27,6 +29,7 @@ import {
 } from '../src/ui/components';
 import { OnboardingOverlay } from '../src/ui/Onboarding';
 import { isDesktopWeb } from '../src/ui/platform';
+import { QrScanner } from '../src/ui/QrScanner';
 import { useTheme } from '../src/ui/theme';
 
 /**
@@ -48,6 +51,34 @@ export default function ConnectScreen() {
   const [touched, setTouched] = useState(false);
 
   const [guide, setGuide] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanNote, setScanNote] = useState<string | null>(null);
+
+  /**
+   * A scanned pairing code carries both halves, so it can connect straight
+   * away. The decoder rejects anything that is not a pairing code, which a
+   * camera pointed at the world will otherwise supply plenty of.
+   */
+  const onScanned = (text: string) => {
+    const payload = decodePairing(text);
+    if (!payload) {
+      setScanNote('Das ist kein Kopplungs-Code. Halte die Kamera auf den Code aus der App.');
+      return;
+    }
+    if (payload.exp !== null && payload.exp <= Date.now()) {
+      setScanNote('Dieser Code ist abgelaufen. Lass dir in der App einen neuen zeigen.');
+      return;
+    }
+
+    setScanning(false);
+    setScanNote(null);
+    setUrl(payload.url);
+    setToken(payload.token);
+    setTouched(true);
+    void saveCredentials({ url: payload.url, token: payload.token }).then(() =>
+      client.connect(payload.url, payload.token),
+    );
+  };
 
   // The storage warning is only shown where it is both true and actionable: a
   // desktop browser with no keychain. On a phone browser the advice ("use the
@@ -135,6 +166,7 @@ export default function ConnectScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <OnboardingOverlay
+        agentReachable={connection.state === 'ready'}
         visible={guide}
         onDismiss={dismissGuide}
         insecureStorage={insecureStorage}
@@ -147,6 +179,20 @@ export default function ConnectScreen() {
             Die App spricht mit dem Agenten, der auf deinem Uberspace läuft — nicht direkt per SSH.
           </Body>
         </View>
+
+        {scanning ? (
+          <QrScanner onResult={onScanned} onCancel={() => setScanning(false)} />
+        ) : Platform.OS === 'web' ? (
+          <Card>
+            <SectionTitle>Schneller: koppeln</SectionTitle>
+            <Body muted>
+              Zeig dir in der Handy-App unter „Gerät koppeln" einen Code an und halte die Kamera
+              darauf. Adresse und Token kommen dann von selbst.
+            </Body>
+            {scanNote ? <Body muted>{scanNote}</Body> : null}
+            <Button label="Mit QR-Code verbinden" onPress={() => setScanning(true)} />
+          </Card>
+        ) : null}
 
         <Card>
           <Field
@@ -201,7 +247,32 @@ export default function ConnectScreen() {
               label="Funktionen"
               value={connection.session.capabilities.join(', ')}
             />
+            {connection.session.auth?.kind === 'issued' ? (
+              <>
+                <KeyValue
+                  label="Zugang"
+                  value={`gekoppelt, gültig bis ${formatExpiry(connection.session.auth.expiresAt)}`}
+                />
+                <Body muted style={{ fontSize: 12 }}>
+                  Danach trennt der Agent die Verbindung. Einen neuen Code gibt es in der Handy-App
+                  unter „Gerät koppeln".
+                </Body>
+              </>
+            ) : null}
             <Button label="Zugangsdaten löschen" variant="danger" onPress={() => void forget()} />
+          </Card>
+        ) : null}
+
+        {connection.state === 'ready' && Platform.OS !== 'web' ? (
+          <Card>
+            <SectionTitle>Gerät koppeln</SectionTitle>
+            <Body muted>
+              Einen Code erzeugen, mit dem sich ein Browser anmeldet — ohne dein eigenes Token
+              weiterzugeben. Der Zugang läuft ab und lässt sich zurücknehmen.
+            </Body>
+            <Link href="/pair" asChild>
+              <Button label="Code anzeigen" onPress={() => {}} />
+            </Link>
           </Card>
         ) : null}
 
@@ -216,4 +287,12 @@ export default function ConnectScreen() {
       </ScrollView>
     </KeyboardAvoidingView>
   );
+}
+
+function formatExpiry(value: number | null): string {
+  if (value === null) return 'unbegrenzt';
+  const date = new Date(value);
+  const sameDay = date.toDateString() === new Date().toDateString();
+  const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return sameDay ? time : `${date.toLocaleDateString()} ${time}`;
 }

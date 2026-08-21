@@ -57,6 +57,22 @@ export interface SessionInfo {
   agentVersion: string;
   /** What the agent can actually do, so the app can hide dead UI. */
   capabilities: Capability[];
+  /**
+   * How this connection authenticated. A paired client holds a token that
+   * expires and can be revoked; the UI shows that rather than letting someone
+   * discover it when the session dies mid-task.
+   */
+  auth?: AuthInfo;
+}
+
+export interface AuthInfo {
+  /** 'master' is the token install.sh generated; 'issued' came from pairing. */
+  kind: 'master' | 'issued';
+  /** Identifies an issued token so it can be revoked. Null for the master. */
+  id: string | null;
+  label: string | null;
+  /** Unix ms. Null means it does not expire. */
+  expiresAt: number | null;
 }
 
 export type Capability =
@@ -79,6 +95,11 @@ export type Capability =
 // ---------------------------------------------------------------------------
 
 export const METHODS = [
+  // --- authentication ------------------------------------------------------
+  'auth.issueToken',
+  'auth.listTokens',
+  'auth.revokeToken',
+
   // --- system / monitoring -------------------------------------------------
   'system.info',
   'system.quota',
@@ -197,6 +218,8 @@ export const STREAMING_METHODS: ReadonlySet<MethodName> = new Set<MethodName>([
 
 /** Methods that change state; the app confirms these before firing. */
 export const MUTATING_METHODS: ReadonlySet<MethodName> = new Set<MethodName>([
+  'auth.issueToken',
+  'auth.revokeToken',
   'system.setToolVersion',
   'system.cron.set',
   'system.shell.set',
@@ -414,6 +437,75 @@ export function isValidWebPath(v: string): boolean {
 
 /** Uberspace requires a mailbox password strong enough for zxcvbn score 4. */
 export const MIN_MAILBOX_PASSWORD_LENGTH = 12;
+
+// ---------------------------------------------------------------------------
+// Pairing tokens
+// ---------------------------------------------------------------------------
+// A second client — a browser, another device — should not need the token
+// install.sh printed. That one never expires and cannot be taken back without
+// restarting the agent. Pairing mints a separate token instead: same
+// capabilities, because nothing in this protocol behaves differently in a
+// browser, but with an expiry and a revoke button behind it.
+
+export interface IssuedTokenInfo {
+  id: string;
+  label: string | null;
+  createdAt: number;
+  /** Unix ms. Null means it does not expire. */
+  expiresAt: number | null;
+  lastUsedAt: number | null;
+  expired: boolean;
+}
+
+/** Returned once, at creation. The agent keeps only a hash afterwards. */
+export interface IssuedToken extends IssuedTokenInfo {
+  token: string;
+}
+
+/** Long enough to survive a work session, short enough that a photo of the
+ * pairing code goes stale. */
+export const DEFAULT_TOKEN_TTL_SECONDS = 12 * 60 * 60;
+export const MIN_TOKEN_TTL_SECONDS = 5 * 60;
+export const MAX_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
+export const MAX_ISSUED_TOKENS = 32;
+
+/**
+ * What a pairing code carries: where the agent is, and a token for it.
+ *
+ * Kept to a short JSON object because it has to survive being rendered as a
+ * QR code on one screen and read by a camera pointed at it.
+ */
+export interface PairingPayload {
+  /** Format marker, so a scanner can reject anything else out of hand. */
+  v: 1;
+  url: string;
+  token: string;
+  /** Unix ms, so a scanner can refuse an already-dead code before connecting. */
+  exp: number | null;
+}
+
+export function encodePairing(payload: PairingPayload): string {
+  return JSON.stringify(payload);
+}
+
+/** Returns null for anything that is not a pairing code, rather than throwing. */
+export function decodePairing(text: string): PairingPayload | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== 'object' || parsed === null) return null;
+
+  const value = parsed as Partial<PairingPayload>;
+  if (value.v !== 1) return null;
+  if (typeof value.url !== 'string' || typeof value.token !== 'string') return null;
+  if (!/^wss?:\/\/\S+$/.test(value.url) || value.token.length < 24) return null;
+
+  const exp = typeof value.exp === 'number' ? value.exp : null;
+  return { v: 1, url: value.url, token: value.token, exp };
+}
 
 // ---------------------------------------------------------------------------
 // Service configuration

@@ -10,6 +10,7 @@
 
 import { METHODS } from '@uberapp/protocol';
 import type { Handler } from '../rpc.js';
+import { authHandlers } from './auth.js';
 import { backupHandlers } from './backup.js';
 import { certHandlers } from './certs.js';
 import { dbHandlers } from './db.js';
@@ -23,6 +24,7 @@ import { systemHandlers } from './system.js';
 import { webHandlers } from './web.js';
 
 export const handlers: Record<string, Handler> = {
+  ...authHandlers,
   ...systemHandlers,
   ...serviceHandlers,
   ...webHandlers,

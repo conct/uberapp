@@ -42,7 +42,12 @@ echo "Node $(node -v) OK"
 
 say "Installing dependencies"
 cd "$REPO_DIR"
-npm install --omit=dev --workspaces --include-workspace-root >/dev/null 2>&1 || npm install
+# Only the two workspaces the agent needs: pulling in the Expo app as well
+# would cost several hundred megabytes of a 10 GB quota for nothing.
+#
+# devDependencies are required, not optional — the agent is compiled here, and
+# --omit=dev would leave tsc without @types/ws and friends.
+npm install --include-workspace-root -w @uberapp/protocol -w @uberapp/agent
 
 say "Building agent"
 npm run build
@@ -73,6 +78,14 @@ sed "s|UBERAPP_PORT=\"8399\"|UBERAPP_PORT=\"$PORT\"|" \
 
 supervisorctl reread
 supervisorctl update
+
+# update only starts a service whose config changed. On a re-run the .ini is
+# usually identical while the code underneath is new, so restart explicitly —
+# otherwise the old build keeps running and the install looks like a no-op.
+if supervisorctl status uberapp-agent >/dev/null 2>&1; then
+  supervisorctl restart uberapp-agent || true
+fi
+
 sleep 3
 supervisorctl status uberapp-agent || true
 

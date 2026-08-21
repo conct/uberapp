@@ -37,12 +37,14 @@ const EXCLUDES = [
 ];
 
 function parseArgs(argv) {
-  const args = { host: null, port: '8399', dir: 'uberapp' };
+  const args = { host: null, port: '8399', dir: 'uberapp', path: 'uberapp', domain: null };
 
   for (let i = 0; i < argv.length; i += 1) {
     const value = argv[i];
     if (value === '--port') args.port = argv[++i];
     else if (value === '--dir') args.dir = argv[++i];
+    else if (value === '--domain') args.domain = argv[++i];
+    else if (value === '--path') args.path = String(argv[++i]).replace(/^\/+/, '');
     else if (value === '--help' || value === '-h') args.help = true;
     else if (!args.host) args.host = value;
   }
@@ -58,6 +60,10 @@ Usage: node tools/setup.mjs <ssh-host> [options]
 Options:
   --port <n>   Port the agent listens on inside the host (default 8399)
   --dir <name> Directory in the home to install into (default uberapp)
+  --domain <d> Route a whole domain to the agent. Needs a DNS record at your
+               registrar first. Without this, a path on <user>.uber.space is
+               used, which works immediately.
+  --path <p>   Path on the default domain (default uberapp)
 `;
 
 function say(message) {
@@ -108,6 +114,36 @@ function remote(host, script) {
   return capture('ssh', ['-o', 'BatchMode=yes', host, script]);
 }
 
+/**
+ * Find an existing backend for our port, as "domain/path".
+ *
+ * A path-only backend prints without a domain — it hangs off the account's
+ * default domain, so spell that out rather than returning a hostless URL.
+ */
+async function findBackend(host, port, user) {
+  const backends = await remote(host, 'uberspace web backend list 2>&1 || true');
+  const line = backends.split('\n').find((entry) => entry.includes(`http:${port}`));
+  if (!line) return null;
+
+  const target = line.trim().split(/\s+/)[0] ?? '';
+  if (!target) return null;
+  return target.startsWith('/') ? `${user}.uber.space${target}` : target.replace(/\/$/, '');
+}
+
+/** Ask the host itself, so DNS and certificate delays do not mask a working agent. */
+async function probe(host, target) {
+  try {
+    const body = await remote(
+      host,
+      `curl -sS -m 10 https://${target}/healthz 2>&1 || echo REQUEST_FAILED`,
+    );
+    const text = body.trim();
+    return { ok: text.includes('"ok":true'), body: text.slice(0, 200) };
+  } catch (err) {
+    return { ok: false, body: err.message };
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help || !args.host) {
@@ -120,6 +156,14 @@ async function main() {
   }
   if (!/^\d{4,5}$/.test(args.port)) {
     fail('--port must be a port number.');
+  }
+  // Both of these end up inside an ssh command line, so they are checked
+  // rather than escaped: a value that does not look right is refused.
+  if (!/^[A-Za-z0-9._-]+$/.test(args.path)) {
+    fail('--path must be a single plain path segment.');
+  }
+  if (args.domain !== null && !/^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(args.domain)) {
+    fail('--domain must be a domain name.');
   }
 
   // --- 1. reachability -----------------------------------------------------
@@ -202,32 +246,59 @@ async function main() {
     `cd ~/${args.dir} && UBERAPP_PORT=${args.port} bash packages/agent/deploy/install.sh`,
   ]);
 
-  // --- 5. report -----------------------------------------------------------
+  // --- 5. make it reachable ------------------------------------------------
+  // This is the step that used to be left to the user, and it is the one that
+  // goes wrong: a backend pointing at the wrong port, or a domain whose DNS is
+  // not set up yet. Doing it here is the whole point of the tool.
+  const user = (await remote(args.host, 'echo "$USER"')).trim();
+  let target = await findBackend(args.host, args.port, user);
+
+  if (!target) {
+    if (args.domain) {
+      say(`Routing ${args.domain} to the agent`);
+      // add is idempotent enough: an existing domain just reports as such.
+      await remote(args.host, `uberspace web domain add ${args.domain} 2>&1 || true`);
+      await remote(
+        args.host,
+        `uberspace web backend set ${args.domain}/ --http --port ${args.port}`,
+      );
+      target = args.domain;
+    } else {
+      // The default domain always exists and already has a certificate, so a
+      // path on it works immediately and needs no DNS anywhere.
+      say(`Routing ${user}.uber.space/${args.path} to the agent`);
+      await remote(
+        args.host,
+        `uberspace web backend set /${args.path} --http --port ${args.port} --remove-prefix`,
+      );
+      target = `${user}.uber.space/${args.path}`;
+    }
+  }
+
+  // --- 6. verify -----------------------------------------------------------
+  say('Checking that it answers');
+  const health = await probe(args.host, target);
+
   const token = (await remote(args.host, 'cat ~/.config/uberapp/token')).trim();
   const status = (
     await remote(args.host, 'supervisorctl status uberapp-agent 2>&1 || true')
   ).trim();
-  const backends = (await remote(args.host, 'uberspace web backend list 2>&1 || true')).trim();
 
   say('Done');
-  process.stdout.write(`${status}\n\n`);
+  process.stdout.write(`${status}\n`);
+  process.stdout.write(
+    health.ok
+      ? `Endpoint answers: ${health.body}\n`
+      : `Endpoint not answering yet: ${health.body}\n` +
+        (args.domain
+          ? 'A new domain needs its DNS record at your registrar, and the certificate ' +
+            'takes a few minutes after that.\n'
+          : ''),
+  );
 
-  const exposed = backends.includes(`http:${args.port}`);
-  if (exposed) {
-    const line = backends.split('\n').find((entry) => entry.includes(`http:${args.port}`)) ?? '';
-    const target = line.trim().split(/\s+/)[0] ?? '';
-    process.stdout.write(
-      `The agent is reachable at:\n\n  URL:   wss://${target}\n  Token: ${token}\n\n` +
-        `Check it with:  curl https://${target}healthz\n`,
-    );
-  } else {
-    process.stdout.write(
-      'The agent runs, but nothing routes to it yet. Pick a domain and run ONE of:\n\n' +
-        `  ssh ${args.host} 'uberspace web backend set uberapp.YOUR-DOMAIN.tld/ --http --port ${args.port}'\n` +
-        `  ssh ${args.host} 'uberspace web backend set /uberapp --http --port ${args.port} --remove-prefix'\n\n` +
-        `Then in the app:\n\n  URL:   wss://<that domain or path>\n  Token: ${token}\n`,
-    );
-  }
+  process.stdout.write(
+    `\nEnter these in the app:\n\n  URL:   wss://${target}\n  Token: ${token}\n`,
+  );
 
   process.stdout.write('\nThat token grants full control of the account. Treat it as a password.\n');
 }

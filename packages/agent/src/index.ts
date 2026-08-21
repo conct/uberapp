@@ -8,14 +8,13 @@
 
 import { access } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { timingSafeEqual } from 'node:crypto';
 import { WebSocketServer, type WebSocket } from 'ws';
 import {
   HEARTBEAT_INTERVAL_MS,
   HEARTBEAT_TIMEOUT_MS,
-  METHODS,
   PROTOCOL_VERSION,
   STREAMING_METHODS,
+  type AuthInfo,
   type Capability,
   type ClientMessage,
   type MethodName,
@@ -23,7 +22,8 @@ import {
 } from '@uberapp/protocol';
 import { AGENT_VERSION, loadConfig, type AgentConfig } from './config.js';
 import { CommandError, hasPtySupport } from './exec.js';
-import { RpcError, type CallContext, type Handler } from './rpc.js';
+import { RpcError, type CallContext } from './rpc.js';
+import { authenticate } from './tokens.js';
 import { SNAPSHOT_ROOT } from './handlers/backup.js';
 import { runWatchPass, WATCH_POLL_MS } from './handlers/certs.js';
 import { hasMysqlCredentials, myCnfPath } from './handlers/db.js';
@@ -42,26 +42,15 @@ function log(level: 'info' | 'warn' | 'error', message: string, extra?: unknown)
   else console[level === 'info' ? 'log' : level](line);
 }
 
-/** Constant-time token comparison. */
-function tokenMatches(expected: string, provided: unknown): boolean {
-  if (typeof provided !== 'string') return false;
-  const a = Buffer.from(expected, 'utf8');
-  const b = Buffer.from(provided, 'utf8');
-  if (a.length !== b.length) {
-    // Still burn a comparison so length is not trivially observable by timing.
-    timingSafeEqual(a, a);
-    return false;
-  }
-  return timingSafeEqual(a, b);
-}
-
 class Connection {
   private authed = false;
+  private auth: AuthInfo | null = null;
   private readonly inflight = new Map<string, () => void>();
   private timestamps: number[] = [];
   private authTimer: NodeJS.Timeout;
   private heartbeat: NodeJS.Timeout | null = null;
   private pongDeadline: NodeJS.Timeout | null = null;
+  private expiryTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly ws: WebSocket,
@@ -98,6 +87,7 @@ class Connection {
     clearTimeout(this.authTimer);
     if (this.heartbeat) clearInterval(this.heartbeat);
     if (this.pongDeadline) clearTimeout(this.pongDeadline);
+    if (this.expiryTimer) clearTimeout(this.expiryTimer);
     // Kill anything still streaming for this client.
     for (const cancel of this.inflight.values()) {
       try {
@@ -139,7 +129,7 @@ class Connection {
     }
 
     if (message?.t === 'auth') {
-      this.onAuth(message);
+      await this.onAuth(message);
       return;
     }
 
@@ -171,10 +161,13 @@ class Connection {
     }
   }
 
-  private onAuth(message: Extract<ClientMessage, { t: 'auth' }>) {
+  private async onAuth(message: Extract<ClientMessage, { t: 'auth' }>) {
     if (this.authed) return;
 
-    if (!tokenMatches(this.config.token, message.token)) {
+    // Accepts the master token or any live pairing token; an expired one is
+    // indistinguishable from a wrong one from out here, which is the point.
+    const auth = await authenticate(this.config, message.token);
+    if (!auth) {
       log('warn', `failed auth from ${this.remote}`);
       this.send({ t: 'auth.err', message: 'Invalid token' });
       // Slow down guessing without holding the socket open indefinitely.
@@ -183,9 +176,27 @@ class Connection {
     }
 
     this.authed = true;
+    this.auth = auth;
     clearTimeout(this.authTimer);
     this.startHeartbeat();
-    log('info', `client authenticated from ${this.remote} (${message.client ?? 'unknown'})`);
+    log(
+      'info',
+      `client authenticated from ${this.remote} (${message.client ?? 'unknown'}) ` +
+        `using the ${auth.kind} token${auth.label ? ` "${auth.label}"` : ''}`,
+    );
+
+    // Close the socket the moment the token stops being valid, rather than
+    // letting a paired browser keep working on a credential that has expired.
+    if (auth.expiresAt !== null) {
+      const remaining = auth.expiresAt - Date.now();
+      this.expiryTimer = setTimeout(
+        () => {
+          this.send({ t: 'auth.err', message: 'This pairing token has expired' });
+          this.ws.close(4004, 'token expired');
+        },
+        Math.max(remaining, 0),
+      );
+    }
 
     this.send({
       t: 'auth.ok',
@@ -195,6 +206,7 @@ class Connection {
         protocol: PROTOCOL_VERSION,
         agentVersion: AGENT_VERSION,
         capabilities: this.capabilities,
+        auth,
       },
     });
   }
@@ -225,6 +237,9 @@ class Connection {
 
     const ctx: CallContext = {
       config: this.config,
+      // Set the moment auth succeeds, and a call cannot reach here before
+      // that; the fallback exists only to keep the type honest.
+      auth: this.auth ?? { kind: 'master', id: null, label: null, expiresAt: null },
       emit: (stream, data) => {
         if (!cancelled) this.send({ t: 'chunk', id, stream, data });
       },
