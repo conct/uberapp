@@ -319,7 +319,27 @@ async function main() {
 
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (req.url === '/healthz') {
-      res.writeHead(200, { 'content-type': 'application/json' });
+      // Readable from any origin on purpose. The web client probes this from
+      // whatever address it happens to be served on — a dev server on
+      // localhost, some other domain in production — and without the header
+      // the browser hides the response, so the app reports a perfectly
+      // healthy agent as unreachable.
+      //
+      // Safe to open up: the body is a version number and a protocol number.
+      // Everything that matters sits behind the WebSocket, which needs a token.
+      const headers = {
+        'content-type': 'application/json',
+        'access-control-allow-origin': '*',
+        'cache-control': 'no-store',
+      };
+
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, { ...headers, 'access-control-allow-methods': 'GET, OPTIONS' });
+        res.end();
+        return;
+      }
+
+      res.writeHead(200, headers);
       res.end(JSON.stringify({ ok: true, agent: AGENT_VERSION, protocol: PROTOCOL_VERSION }));
       return;
     }
