@@ -1,0 +1,25 @@
+# Line endings.
+#
+# Git stores text as LF and, with core.autocrlf enabled, rewrites it to CRLF on
+# a Windows checkout. For source that is harmless. For anything the Uberspace
+# host executes it is fatal: bash stops at the first carriage return with
+# "$'\r': command not found", and supervisord reads a trailing \r as part of the
+# command path. A clone on Windows would ship a broken installer to the host,
+# which is exactly what happened before this file existed.
+
+* text=auto
+
+# Run on the host. These stay LF wherever they are checked out.
+*.sh text eol=lf
+*.ini text eol=lf
+
+# Never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
