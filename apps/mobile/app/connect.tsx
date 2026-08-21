@@ -138,6 +138,7 @@ export default function ConnectScreen() {
         visible={guide}
         onDismiss={dismissGuide}
         insecureStorage={insecureStorage}
+        onApplyUrl={setUrl}
       />
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
         <View style={{ gap: spacing.sm }}>
