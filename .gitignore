@@ -5,3 +5,7 @@ dist/
 .env
 .env.local
 agent.config.json
+
+# A clone of this repository, checked out inside itself. Happens when a
+# setup or test run is started from the wrong directory; never belongs here.
+/uberapp/

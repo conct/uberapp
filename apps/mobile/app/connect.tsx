@@ -29,6 +29,7 @@ import {
 } from '../src/ui/components';
 import { OnboardingOverlay } from '../src/ui/Onboarding';
 import { isDesktopWeb } from '../src/ui/platform';
+import { sshAvailability } from '../src/api/ssh';
 import { QrScanner } from '../src/ui/QrScanner';
 import { useTheme } from '../src/ui/theme';
 
@@ -180,6 +181,19 @@ export default function ConnectScreen() {
           </Body>
         </View>
 
+        {connection.state !== 'ready' ? (
+          <Card>
+            <SectionTitle>Einfache Einrichtung</SectionTitle>
+            <Body muted>
+              Du gibst deine Uberspace-Zugangsdaten ein, die App installiert den Agenten selbst und
+              trägt Adresse und Token danach von allein ein. {sshHint()}
+            </Body>
+            <Link href="/setup-ssh" asChild>
+              <Button label="Einfach einrichten" variant="primary" onPress={() => {}} />
+            </Link>
+          </Card>
+        ) : null}
+
         {scanning ? (
           <QrScanner onResult={onScanned} onCancel={() => setScanning(false)} />
         ) : Platform.OS === 'web' ? (
@@ -287,6 +301,15 @@ export default function ConnectScreen() {
       </ScrollView>
     </KeyboardAvoidingView>
   );
+}
+
+/**
+ * One line on whether the simple path can run here, so the card is honest
+ * before it is tapped rather than after.
+ */
+function sshHint(): string {
+  const { available, reason } = sshAvailability();
+  return available ? '' : `Hier nicht möglich: ${reason}`;
 }
 
 function formatExpiry(value: number | null): string {

@@ -66,6 +66,7 @@ export default function RootLayout() {
         <Stack.Screen name="diagnostics" options={{ title: 'Diagnose' }} />
         <Stack.Screen name="cron" options={{ title: 'Cron' }} />
         <Stack.Screen name="pair" options={{ title: 'Gerät koppeln' }} />
+        <Stack.Screen name="setup-ssh" options={{ title: 'Einfache Einrichtung' }} />
       </Stack>
     </SafeAreaProvider>
   );

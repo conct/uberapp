@@ -1,0 +1,277 @@
+/**
+ * Simple setup: the app installs the agent itself, over SSH.
+ *
+ * The user gives their Uberspace login once, the app does on the host what the
+ * command-line tool would have done, and comes back with an address and a
+ * token already filled in. No terminal, nothing to copy across devices.
+ *
+ * The SSH credentials are held in component state for the length of one run
+ * and never written anywhere. What is worth keeping afterwards is the agent
+ * token, and that is a different secret with a much smaller blast radius.
+ */
+
+import { useState } from 'react';
+import { View } from 'react-native';
+import { useRouter } from 'expo-router';
+
+import { client } from '../src/api/client';
+import { saveCredentials } from '../src/api/storage';
+import {
+  initialSteps,
+  provision,
+  type ProvisionStep,
+  type StepId,
+} from '../src/api/provision';
+import {
+  credentialsProblem,
+  getSshRunner,
+  parseSshTarget,
+  sshAvailability,
+  type SshCredentials,
+} from '../src/api/ssh';
+import {
+  Badge,
+  Body,
+  Button,
+  Card,
+  ChoiceGroup,
+  ConfirmDialog,
+  ErrorBanner,
+  Field,
+  InfoBanner,
+  Mono,
+  OutputBlock,
+  SectionTitle,
+  Title,
+  spacing,
+} from '../src/ui/components';
+import { ScreenScroll } from '../src/ui/Screen';
+import { useTheme, type Theme } from '../src/ui/theme';
+
+type AuthMode = 'password' | 'key';
+
+export default function SetupSshScreen() {
+  const theme = useTheme();
+  const router = useRouter();
+
+  const availability = sshAvailability();
+
+  const [target, setTarget] = useState('');
+  const [user, setUser] = useState('');
+  const [mode, setMode] = useState<AuthMode>('password');
+  const [password, setPassword] = useState('');
+  const [privateKey, setPrivateKey] = useState('');
+  const [domain, setDomain] = useState('');
+
+  const [steps, setSteps] = useState<ProvisionStep[] | null>(null);
+  const [output, setOutput] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  // Accept "stardust", "stardust.uberspace.de" or "isabell@stardust…" and fill
+  // the username in from the last of those, since people paste it that way.
+  const parsed = parseSshTarget(target);
+  const effectiveUser = (user.trim() || parsed.user || '').toLowerCase();
+
+  const credentials: SshCredentials = {
+    host: parsed.host,
+    user: effectiveUser,
+    ...(mode === 'password' ? { password } : { privateKey }),
+  };
+  const problem = credentialsProblem(credentials);
+
+  const run = async () => {
+    const runner = getSshRunner();
+    if (!runner) return;
+
+    setRunning(true);
+    setError(null);
+    setOutput([]);
+
+    let current = initialSteps();
+    setSteps(current);
+    const mark = (id: StepId, patch: Partial<ProvisionStep>) => {
+      current = current.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry));
+      setSteps(current);
+    };
+
+    try {
+      const result = await provision({
+        credentials,
+        runner,
+        domain: domain.trim() || null,
+        onStep: mark,
+        onOutput: (chunk) =>
+          setOutput((previous) => [...previous, chunk].slice(-200)),
+      });
+
+      // Only now does anything get stored, and only the agent's own address
+      // and token — never what got us onto the host.
+      await saveCredentials({ url: result.url, token: result.token });
+      client.connect(result.url, result.token);
+      router.replace('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  if (!availability.available) {
+    return (
+      <ScreenScroll>
+        <View style={{ gap: spacing.xs }}>
+          <Title>Einfache Einrichtung</Title>
+          <Body muted>Hier nicht verfügbar</Body>
+        </View>
+        <Card>
+          <SectionTitle>Warum nicht</SectionTitle>
+          <Body>{availability.reason}</Body>
+          {availability.remedy ? <InfoBanner message={availability.remedy} /> : null}
+          <Button label="Zur fortgeschrittenen Einrichtung" onPress={() => router.replace('/connect')} />
+        </Card>
+      </ScreenScroll>
+    );
+  }
+
+  return (
+    <ScreenScroll>
+      <View style={{ gap: spacing.xs }}>
+        <Title>Einfache Einrichtung</Title>
+        <Body muted>
+          Die App meldet sich einmal per SSH an und installiert den Agenten selbst.
+        </Body>
+      </View>
+
+      <Card>
+        <SectionTitle>Dein Uberspace</SectionTitle>
+        <Field
+          label="Host"
+          value={target}
+          onChangeText={setTarget}
+          placeholder="stardust.uberspace.de"
+          keyboardType="url"
+          hint={
+            parsed.host && parsed.host !== target.trim().toLowerCase()
+              ? `Wird zu ${parsed.host}`
+              : 'Kurzform reicht — .uberspace.de wird ergänzt.'
+          }
+        />
+        <Field
+          label="Benutzername"
+          value={user || parsed.user || ''}
+          onChangeText={setUser}
+          placeholder="isabell"
+        />
+
+        <SectionTitle>Anmeldung</SectionTitle>
+        <ChoiceGroup
+          options={[
+            { value: 'password', label: 'Passwort', hint: 'Dein Uberspace-Passwort.' },
+            {
+              value: 'key',
+              label: 'Privater Schlüssel',
+              hint: 'Inhalt einer Schlüsseldatei, falls du dich damit anmeldest.',
+            },
+          ]}
+          value={mode}
+          onChange={setMode}
+        />
+
+        {mode === 'password' ? (
+          <Field
+            label="Passwort"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            hint="Wird nur für diesen Vorgang benutzt und danach verworfen — nirgends gespeichert."
+          />
+        ) : (
+          <Field
+            label="Privater Schlüssel"
+            value={privateKey}
+            onChangeText={setPrivateKey}
+            multiline
+            monospace
+            hint="Beginnt mit -----BEGIN OPENSSH PRIVATE KEY-----. Wird nicht gespeichert."
+          />
+        )}
+
+        <Field
+          label="Eigene Domain (optional)"
+          value={domain}
+          onChangeText={setDomain}
+          placeholder="uberapp.deine-domain.de"
+          keyboardType="url"
+          hint="Leer lassen: der Agent landet auf <benutzer>.uber.space/uberapp, das braucht kein DNS."
+        />
+      </Card>
+
+      {problem && !running ? <InfoBanner message={problem} /> : null}
+      {error ? <ErrorBanner message={error} /> : null}
+
+      {steps ? (
+        <Card>
+          <SectionTitle>Ablauf</SectionTitle>
+          {steps.map((step) => (
+            <StepRow key={step.id} step={step} theme={theme} />
+          ))}
+          {output.length > 0 ? <OutputBlock text={output.join('')} /> : null}
+        </Card>
+      ) : null}
+
+      <Button
+        label="Einrichten"
+        variant="primary"
+        onPress={() => setConfirming(true)}
+        disabled={problem !== null || running}
+        loading={running}
+      />
+
+      <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
+        Dein Uberspace-Passwort verlässt dieses Gerät nur in Richtung deines eigenen Hosts und wird
+        nach der Einrichtung verworfen. Gespeichert wird ausschliesslich das Agent-Token.
+      </Body>
+
+      <ConfirmDialog
+        visible={confirming}
+        title="Einrichtung starten"
+        message={`Die App meldet sich als ${credentials.user} auf ${credentials.host} an, holt das Projekt, baut den Agenten und macht ihn erreichbar. Das dauert ein bis zwei Minuten.`}
+        confirmLabel="Los"
+        onConfirm={() => {
+          setConfirming(false);
+          void run();
+        }}
+        onCancel={() => setConfirming(false)}
+      />
+    </ScreenScroll>
+  );
+}
+
+function StepRow({ step, theme }: { step: ProvisionStep; theme: Theme }) {
+  const visual =
+    step.state === 'running'
+      ? { label: 'läuft', color: theme.warning }
+      : step.state === 'ok'
+        ? { label: 'ok', color: theme.success }
+        : step.state === 'failed'
+          ? { label: 'Fehler', color: theme.danger }
+          : { label: 'offen', color: theme.textFaint };
+
+  return (
+    <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' }}>
+      <View style={{ paddingTop: 2 }}>
+        <Badge label={visual.label} color={visual.color} />
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Body style={{ fontWeight: '600' }}>{step.title}</Body>
+        {step.detail ? (
+          <Mono style={{ fontSize: 11, color: visual.color }} numberOfLines={3}>
+            {step.detail}
+          </Mono>
+        ) : null}
+      </View>
+    </View>
+  );
+}
