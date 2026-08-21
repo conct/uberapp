@@ -14,7 +14,8 @@
     "dev:agent": "npm run dev -w @uberapp/agent",
     "app": "npm run start -w @uberapp/mobile",
     "typecheck": "tsc -b packages/protocol packages/agent",
-    "test": "npm run test -w @uberapp/agent"
+    "test": "npm run test -w @uberapp/agent",
+    "setup": "node tools/setup.mjs"
   },
   "engines": {
     "node": ">=20"

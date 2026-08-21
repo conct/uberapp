@@ -45,7 +45,7 @@ Shell gelangen.
 ## Installation auf dem Uberspace
 
 ```bash
-git clone <dieses-repo> ~/uberapp && cd ~/uberapp
+git clone https://github.com/conct/uberapp.git ~/uberapp && cd ~/uberapp
 bash packages/agent/deploy/install.sh
 ```
 

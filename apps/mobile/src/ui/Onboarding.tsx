@@ -69,7 +69,7 @@ export function OnboardingOverlay({
               body="Per SSH einloggen und das Installationsskript ausführen. Es baut den Agenten, legt einen supervisord-Service an und erzeugt ein Token."
               command={[
                 'ssh dein-user@dein-host.uberspace.de',
-                'git clone <repo-url> ~/uberapp && cd ~/uberapp',
+                'git clone https://github.com/conct/uberapp.git ~/uberapp && cd ~/uberapp',
                 'bash packages/agent/deploy/install.sh',
               ].join('\n')}
             />
