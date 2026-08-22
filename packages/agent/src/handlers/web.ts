@@ -36,11 +36,16 @@ import {
 
 const domainsList: Handler = async () => {
   const result = await runOrThrow('uberspace', ['web', 'domain', 'list']);
-  return result.stdout
+  const domains = result.stdout
     .split('\n')
     .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.startsWith('#'))
-    .map((domain) => ({ domain }));
+    .filter((line) => line.length > 0 && !line.startsWith('#'));
+
+  // The CLI repeats <user>.uber.space: it is listed as the account's own
+  // domain and again among the configured ones. A domain list is a set, and
+  // the same name twice is not two things — callers key on it, so the
+  // duplicate has to go before it reaches them.
+  return [...new Set(domains)].map((domain) => ({ domain }));
 };
 
 /**
