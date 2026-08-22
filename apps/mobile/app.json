@@ -28,6 +28,12 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-navigation-bar",
+        {
+          "hidden": true
+        }
+      ],
       "react-native-quick-crypto",
       "./plugins/withCmakeVersion"
     ],

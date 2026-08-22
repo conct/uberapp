@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { NavigationBar } from 'expo-navigation-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
 
@@ -38,6 +39,7 @@ export default function RootLayout() {
   if (!restored) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.bg, justifyContent: 'center' }}>
+        <NavigationBar hidden />
         <Loading label="Verbindung wird wiederhergestellt…" />
       </View>
     );
@@ -45,6 +47,13 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      {/*
+        Android draws edge-to-edge by default since SDK 54, so the system
+        navigation bar sits on top of the content and the tab bar has to keep
+        clear of it. Hiding it gives that strip back; a swipe from the bottom
+        still brings it up temporarily. Renders as null on iOS and web.
+      */}
+      <NavigationBar hidden />
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
