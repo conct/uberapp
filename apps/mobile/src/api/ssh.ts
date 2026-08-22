@@ -69,8 +69,10 @@ export interface SshRunner {
  */
 function loadNativeRunner(): SshRunner | null {
   try {
+    // Not named ssh.native.ts: Metro reads a .native. segment as a platform
+    // extension, and would then resolve every import of ./ssh to it.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const module = require('./ssh.native') as { createRunner?: () => SshRunner };
+    const module = require('./sshTransport') as { createRunner?: () => SshRunner };
     return module.createRunner?.() ?? null;
   } catch {
     return null;

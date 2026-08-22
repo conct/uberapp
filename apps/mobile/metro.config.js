@@ -42,6 +42,8 @@ const HTTP = path.resolve(projectRoot, 'src/shims/http.js');
 // ssh2 calls createInflate()._handle.constructor while loading, so this one
 // needs shape too, not just presence.
 const ZLIB = path.resolve(projectRoot, 'src/shims/zlib.js');
+// ssh2's Poly1305 is a WebAssembly build, and Hermes has no WebAssembly.
+const POLY1305 = path.resolve(projectRoot, 'src/shims/poly1305.js');
 
 const NODE_SHIMS = {
   crypto: 'react-native-quick-crypto',
@@ -83,8 +85,19 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   // SSH is never offered in a browser — it needs raw TCP, which browsers do
   // not have. Cutting the module here keeps ssh2 and its dependencies out of
   // the web bundle entirely instead of shipping a megabyte of dead code.
-  if (platform === 'web' && /(^|\/)ssh\.native$/.test(moduleName)) {
+  // Not named ssh.native.ts, deliberately: Metro reads a `.native.` segment as
+  // a platform extension, so that name would make every `import './ssh'`
+  // resolve to the transport on a device — which exports none of what the
+  // callers actually import.
+  if (platform === 'web' && /(^|\/)sshTransport$/.test(moduleName)) {
     return context.resolveRequest(context, EMPTY, platform);
+  }
+
+  // ssh2's Poly1305 is compiled to WebAssembly and instantiates it on load,
+  // not on use. Hermes has no WebAssembly, so importing ssh2 at all would
+  // throw. Only chacha20-poly1305 needs it, and that cipher is not offered.
+  if (/(^|\/)poly1305(\.js)?$/.test(moduleName)) {
+    return context.resolveRequest(context, POLY1305, platform);
   }
 
   const bare = moduleName.replace(/^node:/, '');
