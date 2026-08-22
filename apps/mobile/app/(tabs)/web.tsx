@@ -97,7 +97,11 @@ function DomainsCard({
       ) : (query.data?.length ?? 0) === 0 ? (
         <EmptyState title="Keine Domains" />
       ) : (
-        query.data?.map((entry) => (
+        // Also de-duplicated in the agent, which is the right place for it —
+        // but the agent on a host can be older than the app talking to it, and
+        // `uberspace web domain list` repeats <user>.uber.space. Rendering the
+        // same domain twice would give two rows with one key between them.
+        uniqueBy(query.data ?? [], (entry) => entry.domain).map((entry) => (
           <View
             key={entry.domain}
             style={{
@@ -119,6 +123,12 @@ function DomainsCard({
         ))
       )}
 
+      {/*
+        The error belongs here as much as the output. Without it a failing
+        "DNS" button looked like a button that did nothing at all: the call
+        rejects, the catch swallows it, and no branch renders anything.
+      */}
+      {records.error ? <ErrorBanner message={records.error} /> : null}
       {records.output ? <OutputBlock text={records.output} /> : null}
       {add.error ? <ErrorBanner message={add.error} /> : null}
       {add.output ? <OutputBlock text={add.output} /> : null}
@@ -369,4 +379,21 @@ function LogsCard({
       {toggle.error ? <ErrorBanner message={toggle.error} /> : null}
     </Card>
   );
+}
+
+/**
+ * Keep the first entry for each key and drop later repeats.
+ *
+ * The app cannot choose which agent version a host runs, so a list that should
+ * be a set may not be one. Filtering here keeps the rendered rows honest and
+ * their React keys unique, without pretending the data was already clean.
+ */
+function uniqueBy<T>(items: readonly T[], key: (item: T) => string): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const value = key(item);
+    if (seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  });
 }
