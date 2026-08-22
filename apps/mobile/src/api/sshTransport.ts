@@ -73,6 +73,7 @@ function toConnectConfig(credentials: SshCredentials): ConnectConfig {
  * the three that actually happen.
  */
 function describe(error: Error): string {
+  console.error('[ssh-roh]', error?.stack || String(error));
   const message = error.message || String(error);
   if (/All configured authentication methods failed/i.test(message)) {
     return 'Anmeldung abgelehnt. Stimmen Benutzername und Passwort? Bei einem Schlüssel: ist er auf dem Host hinterlegt?';

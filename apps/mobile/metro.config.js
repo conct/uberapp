@@ -46,13 +46,18 @@ const ZLIB = path.resolve(projectRoot, 'src/shims/zlib.js');
 const POLY1305 = path.resolve(projectRoot, 'src/shims/poly1305.js');
 // quick-crypto reports cipher names in OpenSSL's upper case; Node uses lower.
 const CRYPTO = path.resolve(projectRoot, 'src/shims/crypto.js');
+// tcp-socket's pause() reaches for the native socket before it exists, and
+// its socket is missing the parts of net.Socket that ssh2 writes through.
+const NET = path.resolve(projectRoot, 'src/shims/net.js');
+// ssh2 builds every packet with Buffer's undocumented internal methods.
+const BUFFER = path.resolve(projectRoot, 'src/shims/buffer.js');
 
 const NODE_SHIMS = {
   crypto: CRYPTO,
-  net: 'react-native-tcp-socket',
-  tls: 'react-native-tcp-socket',
+  net: NET,
+  tls: NET,
   stream: 'readable-stream',
-  buffer: 'buffer',
+  buffer: BUFFER,
   events: 'events',
   util: 'util',
   assert: 'assert',
