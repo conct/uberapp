@@ -978,3 +978,6 @@ if address :is "from" "absender@example.com" {
   stop;
 }
 `;
+
+// The browser/phone handoff, brokered by a server that never sees the payload.
+export * from './handoff.js';
