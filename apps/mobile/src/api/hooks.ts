@@ -54,7 +54,13 @@ export function useQuery<T>(
 
   const load = useCallback(
     async (isRefresh: boolean) => {
+      // `loading` starts out as `enabled`, which is right for a query that is
+      // on from the first render and wrong for one switched on later: that one
+      // would sit at loading=false with no data while the call is in flight,
+      // and the screen would render its "nothing here" branch instead of a
+      // spinner. Refreshes keep their own flag so polling does not flicker.
       if (isRefresh) setRefreshing(true);
+      else setLoading(true);
       try {
         const result = await client.call<T>(method, paramsRef.current);
         if (!mounted.current) return;

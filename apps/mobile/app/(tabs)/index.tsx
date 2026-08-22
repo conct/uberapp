@@ -5,7 +5,13 @@
 
 import { View } from 'react-native';
 import { Link } from 'expo-router';
-import type { ProcessInfo, QuotaInfo, ServiceInfo, SystemInfo } from '@uberapp/protocol';
+import type {
+  DiskUsageEntry,
+  ProcessInfo,
+  QuotaInfo,
+  ServiceInfo,
+  SystemInfo,
+} from '@uberapp/protocol';
 
 import { useConnection, useQuery } from '../../src/api/hooks';
 import {
@@ -31,12 +37,32 @@ export default function OverviewScreen() {
 
   const info = useQuery<SystemInfo>('system.info');
   const quota = useQuery<QuotaInfo>('system.quota');
+
+  /**
+   * What to show when there is no quota to show.
+   *
+   * `quota -g` reports nothing from here, and not by accident: the Uberspace
+   * quota is a group quota, and supervisord starts services with an empty
+   * supplementary group list, so the agent has no group to be asked about.
+   * That will not change by retrying — which left this card as a red banner
+   * and a "retry" button that could only fail again.
+   *
+   * Measuring the directories works, so that is what the card falls back to.
+   * It is a different number and is labelled as one: usage without a limit to
+   * compare it against. Only fetched when the quota call has actually failed,
+   * because it walks the account's tree and takes seconds rather than
+   * milliseconds.
+   */
+  const usage = useQuery<{ entries: DiskUsageEntry[] }>('system.diskUsage', undefined, {
+    enabled: quota.error !== null,
+  });
   const services = useQuery<ServiceInfo[]>('services.list', undefined, { pollMs: 15_000 });
   const processes = useQuery<ProcessInfo[]>('system.processes');
 
   const refresh = () => {
     info.refresh();
     quota.refresh();
+    usage.refresh();
     services.refresh();
     processes.refresh();
   };
@@ -46,9 +72,29 @@ export default function OverviewScreen() {
 
   return (
     <ScreenScroll refreshing={info.refreshing} onRefresh={refresh}>
-      <View style={{ gap: spacing.xs }}>
-        <Title>{connection.session?.user ?? 'Uberspace'}</Title>
-        <Body muted>{connection.session?.host ?? ''}</Body>
+      {/*
+        The way to the account list. It belongs here rather than only on the
+        "not connected" screen, which is where it used to live — once a
+        connection succeeded that route disappeared, and with it any way to
+        switch Uberspaces or sign out.
+      */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: spacing.md,
+        }}
+      >
+        <View style={{ gap: spacing.xs, flexShrink: 1 }}>
+          <Title>{connection.session?.user ?? 'Uberspace'}</Title>
+          <Body muted numberOfLines={1}>
+            {connection.session?.host ?? ''}
+          </Body>
+        </View>
+        <Link href="/accounts" asChild>
+          <Button label="Wechseln" onPress={() => {}} />
+        </Link>
       </View>
 
       {failing.length > 0 ? (
@@ -74,11 +120,15 @@ export default function OverviewScreen() {
         <SectionTitle>Speicher</SectionTitle>
         {quota.loading ? (
           <Loading />
-        ) : quota.error ? (
-          <ErrorBanner message={quota.error} onRetry={quota.refresh} />
         ) : quota.data ? (
           <QuotaBar quota={quota.data} />
-        ) : null}
+        ) : usage.loading ? (
+          <Loading />
+        ) : usage.data ? (
+          <MeasuredUsage entries={usage.data.entries} />
+        ) : (
+          <ErrorBanner message={usage.error ?? quota.error ?? ''} onRetry={usage.refresh} />
+        )}
       </Card>
 
       <Card>
@@ -210,3 +260,45 @@ function shortenCommand(command: string): string {
   return trimmed.length > 42 ? `${trimmed.slice(0, 42)}…` : trimmed;
 }
 
+
+/**
+ * Disk usage measured directly, shown when there is no quota to report.
+ *
+ * Deliberately without a bar: a bar needs a limit to fill, and the whole
+ * reason this is here is that no limit is available. Showing one against an
+ * invented maximum would turn "we could not ask" into a number that looks
+ * authoritative.
+ */
+function MeasuredUsage({ entries }: { entries: DiskUsageEntry[] }) {
+  const theme = useTheme();
+
+  const measured = entries.filter((entry) => entry.error === null);
+  const total = measured.reduce((sum, entry) => sum + entry.bytes, 0);
+
+  return (
+    <>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Body>{formatBytes(total)}</Body>
+        <Body muted style={{ fontSize: 12 }}>belegt</Body>
+      </View>
+
+      {measured.map((entry) => (
+        <View
+          key={entry.path}
+          style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm }}
+        >
+          <Mono style={{ fontSize: 11, color: theme.textFaint, flexShrink: 1 }} numberOfLines={1}>
+            {entry.path}
+          </Mono>
+          <Mono style={{ fontSize: 11, color: theme.textMuted }}>{formatBytes(entry.bytes)}</Mono>
+        </View>
+      ))}
+
+      <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
+        Gemessen, nicht das Kontingent: der Agent läuft als supervisord-Dienst ohne
+        Gruppenzugehörigkeit, und das Uberspace-Kontingent ist ein Gruppen-Kontingent. Dein Limit
+        steht im Dashboard.
+      </Body>
+    </>
+  );
+}
