@@ -56,6 +56,12 @@ if [ "$NODE_MAJOR" -lt 20 ]; then
 fi
 echo "Node $(node -v) OK"
 
+# supervisord spawns without a login shell, so PATH does not carry the Node
+# version the account selected - a service whose command is a bare `node`
+# dies with "ERROR (spawn error)" and keeps the reason to itself. Bake the
+# path in at install time, while a login shell is what we are running under.
+NODE_BIN="$(command -v node)"
+
 # --- build -----------------------------------------------------------------
 
 say "Installing dependencies"
@@ -89,9 +95,25 @@ chmod 600 "$TOKEN_FILE"
 
 # --- service ---------------------------------------------------------------
 
+# supervisorctl reports a failed start as "ERROR (spawn error)" and puts the
+# actual reason in supervisord's own log. Somebody setting up from the phone
+# sees only this output, so fetch it rather than leaving them with two words.
+report_service() {
+  service_status="$(supervisorctl status "$1" 2>&1 || true)"
+  echo "$service_status"
+  case "$service_status" in
+    *BACKOFF*|*FATAL*|*EXITED*|*"spawn error"*)
+      echo "$1 did not start. supervisord's reason:"
+      grep -F "$1" "$HOME/logs/supervisord/supervisord.log" 2>/dev/null | tail -n 10 || true
+      tail -n 20 "$HOME/logs/$1.log" 2>/dev/null || true
+      ;;
+  esac
+}
+
 say "Installing the supervisord service"
 mkdir -p "$HOME/etc/services.d" "$HOME/logs"
-sed "s|UBERAPP_PORT=\"8399\"|UBERAPP_PORT=\"$PORT\"|" \
+sed -e "s|UBERAPP_PORT=\"8399\"|UBERAPP_PORT=\"$PORT\"|" \
+    -e "s|^command=node |command=$NODE_BIN |" \
   "$REPO_DIR/packages/agent/deploy/uberapp-agent.ini" > "$SERVICE_FILE"
 
 supervisorctl reread
@@ -105,10 +127,12 @@ if supervisorctl status uberapp-agent >/dev/null 2>&1; then
 fi
 
 sleep 3
-supervisorctl status uberapp-agent || true
+report_service uberapp-agent
 
 say "Installing the handoff broker"
-sed "s|PORT=\"8400\"|PORT=\"$CONNECT_PORT\"|"   "$REPO_DIR/packages/connect/deploy/uberapp-connect.ini" > "$CONNECT_SERVICE_FILE"
+sed -e "s|PORT=\"8400\"|PORT=\"$CONNECT_PORT\"|" \
+    -e "s|^command=node |command=$NODE_BIN |" \
+  "$REPO_DIR/packages/connect/deploy/uberapp-connect.ini" > "$CONNECT_SERVICE_FILE"
 
 supervisorctl reread
 supervisorctl update
@@ -118,7 +142,7 @@ if supervisorctl status uberapp-connect >/dev/null 2>&1; then
 fi
 
 sleep 3
-supervisorctl status uberapp-connect || true
+report_service uberapp-connect
 
 # --- web view --------------------------------------------------------------
 
