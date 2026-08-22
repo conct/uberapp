@@ -12,8 +12,6 @@ import { View } from 'react-native';
 import {
   DEFAULT_TOKEN_TTL_SECONDS,
   decodeHandoffRequest,
-  encodePairing,
-  type IssuedToken,
   type IssuedTokenInfo,
 } from '@uberapp/protocol';
 
@@ -36,7 +34,6 @@ import {
   Title,
   spacing,
 } from '../src/ui/components';
-import { QrCode } from '../src/ui/QrCode';
 import { QrScanner } from '../src/ui/QrScanner';
 import { ScreenScroll } from '../src/ui/Screen';
 import { useTheme } from '../src/ui/theme';
@@ -59,7 +56,6 @@ export default function PairScreen() {
 
   const [url, setUrl] = useState<string | null>(null);
   const [ttl, setTtl] = useState<Ttl>(String(DEFAULT_TOKEN_TTL_SECONDS) as Ttl);
-  const [issued, setIssued] = useState<IssuedToken | null>(null);
   const [revoking, setRevoking] = useState<IssuedTokenInfo | null>(null);
 
   // Browser handoff, which is a separate flow from the code shown below.
@@ -71,28 +67,14 @@ export default function PairScreen() {
   const tokens = useQuery<IssuedTokenInfo[]>('auth.listTokens');
   const isMaster = connection.session?.auth?.kind !== 'issued';
 
-  const issue = useMutation<{ label: string; ttlSeconds: number }>('auth.issueToken', {
-    onSuccess: (data) => {
-      setIssued(data as IssuedToken);
-      tokens.refresh();
-    },
-  });
   const revoke = useMutation<{ id: string }>('auth.revokeToken', {
-    onSuccess: () => {
-      setIssued(null);
-      tokens.refresh();
-    },
+    onSuccess: () => tokens.refresh(),
   });
 
   // The address the code has to carry is the one this client connected on.
   useEffect(() => {
     void loadCredentials().then((credentials) => setUrl(credentials?.url ?? null));
   }, []);
-
-  const payload =
-    issued && url
-      ? encodePairing({ v: 1, url, token: issued.token, exp: issued.expiresAt })
-      : null;
 
   /**
    * A scanned browser code. The decoder rejects anything else, which a camera
@@ -116,7 +98,7 @@ export default function PairScreen() {
     }
 
     setDepositing(true);
-    void depositHandoff({ request, url, label: hostOf(url) })
+    void depositHandoff({ request, url, label: hostOf(url), ttlSeconds: Number(ttl) })
       .then(() => {
         setHandoffNote('Übergeben. Der Browser sollte sich jetzt von selbst verbinden.');
         tokens.refresh();
@@ -165,6 +147,9 @@ export default function PairScreen() {
           hier.
         </Body>
 
+        <SectionTitle>Wie lange soll der Zugang gelten?</SectionTitle>
+        <ChoiceGroup options={TTL_OPTIONS} value={ttl} onChange={setTtl} />
+
         {scanning ? (
           <QrScanner
             onResult={onBrowserCode}
@@ -190,49 +175,6 @@ export default function PairScreen() {
         {handoffError ? <ErrorBanner message={handoffError} /> : null}
         {handoffNote ? <InfoBanner message={handoffNote} /> : null}
       </Card>
-
-      {issued && payload ? (
-        <Card>
-          <SectionTitle>Diesen Code scannen</SectionTitle>
-          <QrCode value={payload} size={260} />
-          <Body muted style={{ fontSize: 13 }}>
-            Im Browser „Mit QR-Code verbinden" öffnen und die Kamera darauf halten. Gültig bis{' '}
-            {formatExpiry(issued.expiresAt)}.
-          </Body>
-
-          <SectionTitle>Ohne Kamera</SectionTitle>
-          <Body muted style={{ fontSize: 13 }}>
-            Adresse und Token von Hand eintragen:
-          </Body>
-          <Mono style={{ fontSize: 11, color: theme.textMuted }}>{url}</Mono>
-          <Mono style={{ fontSize: 11, color: theme.textMuted }}>{issued.token}</Mono>
-
-          <InfoBanner message="Der Code ist so gut wie ein Passwort, solange er gilt. Zeig ihn niemandem, den du nicht selbst einloggen willst — und lass ihn nicht offen auf dem Schirm stehen." />
-          <Button label="Fertig" onPress={() => setIssued(null)} />
-        </Card>
-      ) : (
-        <Card>
-          <SectionTitle>Wie lange soll der Zugang gelten?</SectionTitle>
-          <ChoiceGroup options={TTL_OPTIONS} value={ttl} onChange={setTtl} />
-          {issue.error ? <ErrorBanner message={issue.error} /> : null}
-          <Button
-            label="Code erzeugen"
-            variant="primary"
-            onPress={() =>
-              void issue
-                .run({ label: 'Gekoppeltes Gerät', ttlSeconds: Number(ttl) })
-                .catch(() => {})
-            }
-            loading={issue.pending}
-            disabled={!url || issue.pending}
-          />
-          {!url ? (
-            <Body muted style={{ fontSize: 12 }}>
-              Die Adresse des Agenten ist noch nicht geladen.
-            </Body>
-          ) : null}
-        </Card>
-      )}
 
       <Card>
         <SectionTitle>Gekoppelte Zugänge</SectionTitle>

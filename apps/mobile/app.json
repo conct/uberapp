@@ -34,6 +34,12 @@
           "hidden": true
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Zum Scannen des Kopplungs-Codes, den die Web-Ansicht anzeigt. Es wird nichts aufgezeichnet."
+        }
+      ],
       "react-native-quick-crypto",
       "./plugins/withCmakeVersion",
       "./plugins/withDeviceAbi"

@@ -6,8 +6,6 @@ import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 
-import { decodePairing } from '@uberapp/protocol';
-
 import { client, httpUrl, normalizeUrl } from '../src/api/client';
 import { useConnection } from '../src/api/hooks';
 import {
@@ -30,7 +28,6 @@ import {
 } from '../src/ui/components';
 import { BrowserPairing } from '../src/ui/BrowserPairing';
 import { sshAvailability } from '../src/api/ssh';
-import { QrScanner } from '../src/ui/QrScanner';
 import { useTheme } from '../src/ui/theme';
 
 export default function ConnectScreen() {
@@ -48,34 +45,6 @@ export default function ConnectScreen() {
   const [probing, setProbing] = useState(false);
   const [touched, setTouched] = useState(false);
 
-  const [scanning, setScanning] = useState(false);
-  const [scanNote, setScanNote] = useState<string | null>(null);
-
-  /**
-   * A scanned pairing code carries both halves, so it can connect straight
-   * away. The decoder rejects anything that is not a pairing code, which a
-   * camera pointed at the world will otherwise supply plenty of.
-   */
-  const onScanned = (text: string) => {
-    const payload = decodePairing(text);
-    if (!payload) {
-      setScanNote('Das ist kein Kopplungs-Code. Halte die Kamera auf den Code aus der App.');
-      return;
-    }
-    if (payload.exp !== null && payload.exp <= Date.now()) {
-      setScanNote('Dieser Code ist abgelaufen. Lass dir in der App einen neuen zeigen.');
-      return;
-    }
-
-    setScanning(false);
-    setScanNote(null);
-    setUrl(payload.url);
-    setToken(payload.token);
-    setTouched(true);
-    void saveCredentials({ url: payload.url, token: payload.token }).then(() =>
-      client.connect(payload.url, payload.token),
-    );
-  };
 
   useEffect(() => {
     void loadCredentials().then((credentials) => {
@@ -231,18 +200,6 @@ export default function ConnectScreen() {
               <Button label="Einfach einrichten" variant="primary" onPress={() => {}} />
             </Link>
           </Card>
-        ) : null}
-
-        {scanning ? (
-          <>
-            <QrScanner onResult={onScanned} onCancel={() => setScanning(false)} />
-            {/*
-              The scanner's only feedback. Without it a camera pointed at the
-              wrong thing — or at an expired code — simply does nothing, which
-              reads as a broken scanner rather than a rejected code.
-            */}
-            {scanNote ? <ErrorBanner message={scanNote} /> : null}
-          </>
         ) : null}
 
         <Card>
