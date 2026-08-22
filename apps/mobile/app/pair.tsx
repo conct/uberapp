@@ -11,11 +11,13 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import {
   DEFAULT_TOKEN_TTL_SECONDS,
+  decodeHandoffRequest,
   encodePairing,
   type IssuedToken,
   type IssuedTokenInfo,
 } from '@uberapp/protocol';
 
+import { depositHandoff, HandoffError } from '../src/api/handoff';
 import { loadCredentials } from '../src/api/storage';
 import { useConnection, useMutation, useQuery } from '../src/api/hooks';
 import {
@@ -35,6 +37,7 @@ import {
   spacing,
 } from '../src/ui/components';
 import { QrCode } from '../src/ui/QrCode';
+import { QrScanner } from '../src/ui/QrScanner';
 import { ScreenScroll } from '../src/ui/Screen';
 import { useTheme } from '../src/ui/theme';
 
@@ -58,6 +61,12 @@ export default function PairScreen() {
   const [ttl, setTtl] = useState<Ttl>(String(DEFAULT_TOKEN_TTL_SECONDS) as Ttl);
   const [issued, setIssued] = useState<IssuedToken | null>(null);
   const [revoking, setRevoking] = useState<IssuedTokenInfo | null>(null);
+
+  // Browser handoff, which is a separate flow from the code shown below.
+  const [scanning, setScanning] = useState(false);
+  const [depositing, setDepositing] = useState(false);
+  const [handoffError, setHandoffError] = useState<string | null>(null);
+  const [handoffNote, setHandoffNote] = useState<string | null>(null);
 
   const tokens = useQuery<IssuedTokenInfo[]>('auth.listTokens');
   const isMaster = connection.session?.auth?.kind !== 'issued';
@@ -85,6 +94,43 @@ export default function PairScreen() {
       ? encodePairing({ v: 1, url, token: issued.token, exp: issued.expiresAt })
       : null;
 
+  /**
+   * A scanned browser code. The decoder rejects anything else, which a camera
+   * pointed at a room supplies in quantity — including the *other* code this
+   * screen can show, which carries a token and must never be fed back here.
+   */
+  const onBrowserCode = (text: string) => {
+    const request = decodeHandoffRequest(text);
+    if (!request) {
+      setHandoffNote('Das ist kein Browser-Code. Halte die Kamera auf den Code, den die Seite zeigt.');
+      return;
+    }
+
+    setScanning(false);
+    setHandoffNote(null);
+    setHandoffError(null);
+
+    if (!url) {
+      setHandoffError('Die Adresse des Agenten ist noch nicht geladen.');
+      return;
+    }
+
+    setDepositing(true);
+    void depositHandoff({ request, url, label: hostOf(url) })
+      .then(() => {
+        setHandoffNote('Übergeben. Der Browser sollte sich jetzt von selbst verbinden.');
+        tokens.refresh();
+      })
+      .catch((err: unknown) => {
+        setHandoffError(
+          err instanceof HandoffError || err instanceof Error
+            ? err.message
+            : 'Die Übergabe ist fehlgeschlagen.',
+        );
+      })
+      .finally(() => setDepositing(false));
+  };
+
   if (connection.state === 'ready' && !isMaster) {
     return (
       <ScreenScroll>
@@ -104,6 +150,46 @@ export default function PairScreen() {
         <Title>Gerät koppeln</Title>
         <Body muted>Einen zweiten Zugang erzeugen, ohne dein eigenes Token weiterzugeben</Body>
       </View>
+
+      {/*
+        The way round that works without a webcam. The browser cannot start on
+        its own — it has no token and does not even know which Uberspace it
+        should ask — so it shows a code and this reads it. Desktops often have
+        no camera, and the ones that do are the wrong end to point at a screen.
+      */}
+      <Card>
+        <SectionTitle>Browser koppeln</SectionTitle>
+        <Body muted style={{ fontSize: 13 }}>
+          Öffne {browserHint(url)} am Rechner und halte die Kamera auf den Code, den die Seite
+          zeigt. Der Browser bekommt danach einen eigenen, befristeten Zugang — dein Token bleibt
+          hier.
+        </Body>
+
+        {scanning ? (
+          <QrScanner
+            onResult={onBrowserCode}
+            onCancel={() => {
+              setScanning(false);
+              setHandoffNote(null);
+            }}
+          />
+        ) : (
+          <Button
+            label={depositing ? 'Übergabe läuft…' : 'Code im Browser scannen'}
+            variant="primary"
+            loading={depositing}
+            disabled={depositing || connection.state !== 'ready'}
+            onPress={() => {
+              setHandoffNote(null);
+              setHandoffError(null);
+              setScanning(true);
+            }}
+          />
+        )}
+
+        {handoffError ? <ErrorBanner message={handoffError} /> : null}
+        {handoffNote ? <InfoBanner message={handoffNote} /> : null}
+      </Card>
 
       {issued && payload ? (
         <Card>
@@ -203,4 +289,23 @@ function formatExpiry(value: number | null): string {
   const sameDay = date.toDateString() === new Date().toDateString();
   const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   return sameDay ? time : `${date.toLocaleDateString()} ${time}`;
+}
+
+/** The host out of a wss:// address, which is what a person recognises. */
+function hostOf(url: string): string {
+  return url.replace(/^[a-z]+:\/\//i, '').split('/')[0] ?? url;
+}
+
+/**
+ * Where the browser view lives, when it can be worked out.
+ *
+ * install.sh publishes it at uberapp.<user>.uber.space — a subdomain of the
+ * default domain, which is the one address that always exists. A custom domain
+ * for the agent tells us nothing about where the view was put, so that case
+ * says so rather than inventing a link.
+ */
+function browserHint(url: string | null): string {
+  if (!url) return 'die Web-Ansicht';
+  const host = hostOf(url);
+  return /\.uber\.space$/.test(host) ? `https://uberapp.${host}` : 'die Web-Ansicht';
 }

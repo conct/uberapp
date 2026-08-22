@@ -29,6 +29,7 @@ import {
   Title,
   spacing,
 } from '../src/ui/components';
+import { BrowserPairing } from '../src/ui/BrowserPairing';
 import { OnboardingOverlay } from '../src/ui/Onboarding';
 import { isDesktopWeb } from '../src/ui/platform';
 import { sshAvailability } from '../src/api/ssh';
@@ -211,6 +212,24 @@ export default function ConnectScreen() {
             Die App spricht mit dem Agenten, der auf deinem Uberspace läuft — nicht direkt per SSH.
           </Body>
         </View>
+
+        {/*
+          On the web this is the way in, not an extra: a browser has no token
+          and no way to run the SSH setup, so it asks the phone. On a phone the
+          card would be pointing at itself.
+        */}
+        {Platform.OS === 'web' && connection.state !== 'ready' ? (
+          <BrowserPairing
+            onPaired={(handoff) => {
+              setUrl(handoff.url);
+              setToken(handoff.token);
+              setTouched(true);
+              void saveCredentials({ url: handoff.url, token: handoff.token }).then(() =>
+                client.connect(handoff.url, handoff.token),
+              );
+            }}
+          />
+        ) : null}
 
         {connection.state !== 'ready' ? (
           <Card>
