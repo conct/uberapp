@@ -2,9 +2,9 @@
  * react-native-tcp-socket, filled out to what ssh2 expects of a net.Socket.
  *
  * The library is a good TCP socket and a partial net.Socket. ssh2 is written
- * against the real thing, and reaches for three parts that are missing. Each
- * one is added here rather than patched into the library, so nothing else in
- * the app is affected.
+ * against the real thing, and reaches for four parts that are missing. Each one
+ * is added here rather than patched into the library, so nothing else in the
+ * app is affected.
  *
  * 1. pause() and resume() before connect
  *
@@ -65,7 +65,16 @@
  *    has gone quiet, until the ready timeout expires. Nothing reports an error
  *    along the way, which is what makes it worth spelling out.
  *
- * The state these three properties describe already exists on the socket, in
+ * 4. An error event that carries an Error
+ *
+ *    The library forwards the native side's report verbatim, and for a failed
+ *    name lookup that is a string. ssh2 annotates socket errors the way any
+ *    Node code does — `err.level = 'client-socket'` — and assigning to a string
+ *    primitive throws. A mistyped hostname therefore surfaced as an uncaught
+ *    "Cannot create property 'level' on string", with the real reason inside
+ *    the message it had just destroyed. See emit() below.
+ *
+ * The state the properties in 3 describe already exists on the socket, in
  * _destroyed and _readyState; they are just not exposed under the names ssh2
  * reads. So they are derived rather than tracked separately — there is no
  * second copy of the truth to drift.
@@ -74,6 +83,24 @@
 const TcpSocket = require('react-native-tcp-socket');
 
 const BaseSocket = TcpSocket.Socket;
+
+/** Android's wording for a name that does not resolve. */
+const DNS_FAILURE = /unable to resolve host|no address associated with hostname|nodename nor servname/i;
+
+function toError(value) {
+  const message =
+    typeof value === 'string'
+      ? value
+      : value && typeof value === 'object' && typeof value.message === 'string'
+        ? value.message
+        : 'Socket error';
+
+  const error = new Error(message);
+  // Node reports a failed lookup this way, and code that handles sockets tends
+  // to branch on the code rather than on the wording.
+  if (DNS_FAILURE.test(message)) error.code = 'ENOTFOUND';
+  return error;
+}
 
 class Socket extends BaseSocket {
   constructor(...args) {
@@ -126,6 +153,33 @@ class Socket extends BaseSocket {
       return this;
     }
     return super.resume();
+  }
+
+  /**
+   * Make an error event carry an Error, which is what a caller may assume.
+   *
+   * The library forwards whatever the native side reported:
+   *
+   *   this.emit('error', evt.error);        // src/Socket.js
+   *
+   * and for a failed name lookup that is a *string*. ssh2 then does what any
+   * Node code does with a socket error — annotates it and re-emits:
+   *
+   *   err.level = 'client-socket';          // ssh2/lib/client.js:804
+   *
+   * Assigning a property to a string primitive throws, so a mistyped hostname
+   * surfaced as an uncaught "Cannot create property 'level' on string" instead
+   * of "no such host". The failure was reported correctly and then destroyed
+   * on the way out.
+   *
+   * The DNS case also gets Node's code for it, so callers that recognise
+   * ENOTFOUND — including this app's own error messages — keep working.
+   */
+  emit(event, ...args) {
+    if (event === 'error' && !(args[0] instanceof Error)) {
+      args[0] = toError(args[0]);
+    }
+    return super.emit(event, ...args);
   }
 
   /** eventemitter3 has no listener cap, so there is nothing to set. */

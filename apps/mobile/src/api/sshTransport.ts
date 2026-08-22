@@ -110,6 +110,11 @@ function toConnectConfig(credentials: SshCredentials): ConnectConfig {
  */
 function describe(error: Error): string {
   const message = error.message || String(error);
+  // A failed lookup arrives with Node's code but Android's wording, which
+  // names neither the host nor what to do about it.
+  if ((error as NodeJS.ErrnoException).code === 'ENOTFOUND') {
+    return `Diesen Host gibt es nicht. Steckt ein Tippfehler in der Adresse? (${message})`;
+  }
   if (/All configured authentication methods failed/i.test(message)) {
     return 'Anmeldung abgelehnt. Stimmen Benutzername und Passwort? Bei einem Schlüssel: ist er auf dem Host hinterlegt?';
   }
