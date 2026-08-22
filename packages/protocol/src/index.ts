@@ -532,8 +532,20 @@ export interface ServiceSpec {
   environment?: Record<string, string>;
 }
 
-/** supervisord's default of 1 second marks slow starters as failed. */
-export const DEFAULT_STARTSECS = 10;
+/**
+ * supervisord's own default is 1 second, which marks anything slower than
+ * instant as failed. 30 is what this project's own service uses and what the
+ * app offers; the manual's example goes further still, at 60.
+ *
+ * The floor exists because the failure it prevents reads as the opposite of
+ * what it is: a process that takes longer to come up than its startsecs is
+ * reported FATAL while running perfectly well, and the obvious-looking fix —
+ * lower the number — makes that more likely, not less. Ten seconds is low
+ * enough for a genuinely fast service and high enough that nobody arrives
+ * there by trying to silence a warning.
+ */
+export const DEFAULT_STARTSECS = 30;
+export const MIN_STARTSECS = 10;
 export const MAX_STARTSECS = 3600;
 
 /** A value that cannot break out of its ini line. */
@@ -566,8 +578,14 @@ export function buildServiceIni(spec: ServiceSpec): string {
   if (spec.directory !== undefined && !isValidIniValue(spec.directory)) {
     throw new ServiceSpecError('The working directory must be a single line');
   }
-  if (!Number.isInteger(spec.startsecs) || spec.startsecs < 0 || spec.startsecs > MAX_STARTSECS) {
-    throw new ServiceSpecError(`startsecs must be between 0 and ${MAX_STARTSECS} seconds`);
+  if (
+    !Number.isInteger(spec.startsecs) ||
+    spec.startsecs < MIN_STARTSECS ||
+    spec.startsecs > MAX_STARTSECS
+  ) {
+    throw new ServiceSpecError(
+      `startsecs must be between ${MIN_STARTSECS} and ${MAX_STARTSECS} seconds`,
+    );
   }
 
   const lines = [
