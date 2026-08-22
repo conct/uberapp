@@ -125,6 +125,9 @@ export const METHODS = [
   'services.control',
   'services.reload',
   'services.remove',
+  // Everything remove/deleteConfig/reload do, in the order that works, and
+  // tolerant of the steps that were already done.
+  'services.delete',
   'services.readConfig',
   'services.writeConfig',
   'services.deleteConfig',
@@ -228,6 +231,7 @@ export const MUTATING_METHODS: ReadonlySet<MethodName> = new Set<MethodName>([
   'services.control',
   'services.reload',
   'services.remove',
+  'services.delete',
   'services.writeConfig',
   'services.deleteConfig',
   'web.domains.add',

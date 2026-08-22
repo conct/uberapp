@@ -200,6 +200,101 @@ const deleteConfig: Handler = async (params, ctx) => {
 };
 
 /**
+ * supervisorctl's ways of saying "there was nothing left to do".
+ *
+ * Removing a service is four steps, and a person deleting one has usually
+ * already done some of them by hand — stopped it last week, deleted the .ini
+ * and never reread. Treating those as failures would make the sequence refuse
+ * to finish exactly the cleanups that need finishing, so they are outcomes,
+ * not errors. Anything else still is one.
+ */
+const NOTHING_TO_DO =
+  /no such process|not running|already stopped|ERROR \(no such process\)/i;
+
+export function isNothingToDo(output: string): boolean {
+  return NOTHING_TO_DO.test(output);
+}
+
+type StepState = 'ok' | 'skipped' | 'failed';
+
+interface DeleteStep {
+  step: string;
+  state: StepState;
+  detail: string;
+}
+
+/**
+ * Delete a service: stop it, drop it from supervisord, remove its .ini, and
+ * make supervisord forget it.
+ *
+ * The order matters and is not obvious — supervisord refuses to remove a
+ * running process, and `update` only drops a process group once its config
+ * file is gone. Doing this by hand means four commands in the right sequence,
+ * with two of them failing harmlessly if the service was already half gone.
+ * That is the whole reason this is one call rather than four.
+ *
+ * It reports every step rather than a single ok/failed, because a partial
+ * result is the interesting case: the .ini deleted but supervisord not
+ * reloaded leaves a service that is listed and cannot be started.
+ */
+const deleteService: Handler = async (params, ctx) => {
+  const p = asObject(params);
+  const name = serviceName(p);
+  const path = join(SERVICES_DIR(ctx.config.home), `${name}.ini`);
+  const steps: DeleteStep[] = [];
+
+  const supervisor = async (step: string, args: string[]) => {
+    const result = await run('supervisorctl', args, { timeoutMs: 60_000 });
+    const output = (result.stdout + result.stderr).trim();
+    steps.push({
+      step,
+      state: result.ok ? 'ok' : isNothingToDo(output) ? 'skipped' : 'failed',
+      detail: output,
+    });
+  };
+
+  await supervisor('stop', ['stop', name]);
+  await supervisor('remove', ['remove', name]);
+
+  try {
+    await unlink(path);
+    steps.push({ step: 'config', state: 'ok', detail: path });
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT') {
+      steps.push({ step: 'config', state: 'skipped', detail: `${path} was already gone` });
+    } else {
+      steps.push({ step: 'config', state: 'failed', detail: `${path}: ${String(err)}` });
+    }
+  }
+
+  await supervisor('reread', ['reread']);
+  await supervisor('update', ['update']);
+
+  // What counts is the end state, not whether every step had work to do: the
+  // service is gone when supervisord no longer lists it and no config is left
+  // to bring it back.
+  const status = await run('supervisorctl', ['status', name], { timeoutMs: 30_000 });
+  const stillListed = !isNothingToDo((status.stdout + status.stderr).trim());
+  const configLeft = await access(path).then(
+    () => true,
+    () => false,
+  );
+
+  if (stillListed || configLeft) {
+    const failed = steps.find((entry) => entry.state === 'failed');
+    throw RpcError.commandFailed(
+      failed
+        ? `Could not fully remove the service (${failed.step} failed)`
+        : 'The service is still there, though no step reported a failure',
+      steps.map((entry) => `${entry.step}: ${entry.state} ${entry.detail}`).join('\n'),
+    );
+  }
+
+  return { name, path, steps, gone: true };
+};
+
+/**
  * Stream a service's log.
  *
  * We use `supervisorctl tail -f` rather than tailing a file directly because
@@ -230,6 +325,7 @@ export const serviceHandlers: Record<string, Handler> = {
   'services.control': control,
   'services.reload': reload,
   'services.remove': remove,
+  'services.delete': deleteService,
   'services.readConfig': readConfig,
   'services.writeConfig': writeConfig,
   'services.deleteConfig': deleteConfig,

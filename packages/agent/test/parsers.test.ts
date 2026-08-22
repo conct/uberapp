@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseStatus } from '../src/handlers/services.js';
+import { isNothingToDo, parseStatus } from '../src/handlers/services.js';
 import { parseCatchall, parseForward, parseSpamfolder } from '../src/handlers/mail.js';
 import { parseBackends, parseHeaders, toPunycode } from '../src/handlers/web.js';
 import { shouldRestart } from '../src/handlers/certs.js';
@@ -44,6 +44,20 @@ import {
 import { missingHandlers, strayHandlers } from '../src/handlers/registry.js';
 import { digestsMatch, hashToken, isExpired, prune } from '../src/tokens.js';
 import { shellQuote } from '../src/exec.js';
+
+describe('isNothingToDo', () => {
+  // Deleting a service runs four commands, and somebody who already stopped it
+  // by hand must not see that reported as a failure.
+  it('recognises supervisorctl saying there was nothing to stop', () => {
+    assert.ok(isNothingToDo('my-daemon: ERROR (no such process)'));
+    assert.ok(isNothingToDo('my-daemon: ERROR (not running)'));
+  });
+
+  it('does not swallow a real failure', () => {
+    assert.equal(isNothingToDo('unix:///home/isabell/supervisor.sock refused connection'), false);
+    assert.equal(isNothingToDo('my-daemon: stopped'), false);
+  });
+});
 
 describe('parseStatus', () => {
   it('reads a running service with pid and uptime', () => {
