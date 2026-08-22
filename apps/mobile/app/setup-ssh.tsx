@@ -87,8 +87,13 @@ export default function SetupSshScreen() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const found =
-        parsed.host && effectiveUser ? await loadSshKey(parsed.host, effectiveUser) : null;
+      // Never allowed to throw into nowhere: this runs on every keystroke in
+      // the host and user fields, so a storage failure would surface as a
+      // stream of uncaught rejections over the form rather than as one
+      // missing convenience.
+      const found = await (parsed.host && effectiveUser
+        ? loadSshKey(parsed.host, effectiveUser).catch(() => null)
+        : Promise.resolve(null));
       if (!cancelled) setStoredKey(found);
     })();
     return () => {

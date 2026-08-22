@@ -280,7 +280,13 @@ export async function clearCredentials(): Promise<void> {
 const SSH_KEY_PREFIX = 'uberapp.sshkey.';
 
 function sshKeyKey(host: string, user: string): string {
-  return `${SSH_KEY_PREFIX}${user}@${host}`.toLowerCase();
+  // SecureStore takes only alphanumerics, '.', '-' and '_' in a key name, and
+  // the obvious identifier for a login — user@host — contains the one
+  // character it refuses. It throws rather than returning null, so getting
+  // this wrong turned every keystroke in the host field into an uncaught
+  // rejection. accountId() already normalises exactly this way for the token
+  // keys; following it beats inventing a second rule that can drift from it.
+  return `${SSH_KEY_PREFIX}${accountId(`${user}-at-${host}`)}`;
 }
 
 export async function saveSshKey(host: string, user: string, privateKey: string): Promise<void> {
