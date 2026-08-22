@@ -2,6 +2,7 @@
   "name": "uberapp",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "description": "Helper app for Uberspace 7 — Expo client + on-server WebSocket agent",
   "workspaces": [
     "packages/*",

@@ -164,10 +164,9 @@ quick-crypto nicht hat.
 
 ## Lizenz und Drittanbieter
 
-**Dieses Projekt hat noch keine Lizenz.** Ohne LICENSE-Datei gilt das
-Urheberrecht in seiner Grundeinstellung: Ansehen ja, benutzen oder forken nein.
-Wer es freigeben will, legt eine Lizenz fest und trägt sie auch in
-`package.json` ein.
+[MIT](LICENSE) — benutzen, ändern, weitergeben und verkaufen ist erlaubt,
+solange der Copyright-Vermerk mitgeht. Keine Pflicht, deine Änderungen
+offenzulegen.
 
 Die ausgelieferten Pakete — `apps/mobile/web-dist` und das APK — **enthalten
 fremden Code**. MIT und Apache-2.0 verlangen, dass Lizenztext und

@@ -1,6 +1,7 @@
 {
   "name": "@uberapp/mobile",
   "version": "1.0.0",
+  "license": "MIT",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

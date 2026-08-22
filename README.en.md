@@ -166,9 +166,8 @@ not provide.
 
 ## Licence and third parties
 
-**This project has no licence yet.** Without a LICENSE file, default copyright
-applies: you may look, but not use or fork. Anyone releasing it should choose a
-licence and record it in `package.json` too.
+[MIT](LICENSE) — use, modify, redistribute and sell, as long as the copyright
+notice travels with it. No obligation to publish your changes.
 
 The built artefacts — `apps/mobile/web-dist` and the APK — **contain
 third-party code**. MIT and Apache-2.0 require the licence text and copyright

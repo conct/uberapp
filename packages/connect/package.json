@@ -1,6 +1,7 @@
 {
   "name": "@uberapp/connect",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "description": "Uberapp handoff broker: holds one sealed payload per slot, briefly, and reads none of them",
