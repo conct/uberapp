@@ -135,21 +135,38 @@ export default function AccountsScreen() {
     router.replace('/');
   };
 
+  /**
+   * Removing a tile takes Uberapp off the host with it.
+   *
+   * It used to delete only the token here, which left both services running,
+   * the backends routed and the checkout in place — with the one thing that
+   * could have reached them now gone from the device. That is not a removal,
+   * it is losing the key to a room you left the lights on in.
+   *
+   * The work happens on the removal screen rather than behind this dialog:
+   * it is a sequence of steps against a real host and it ends by deleting the
+   * agent serving the call, which is worth watching. That screen forgets the
+   * account here once the host is clear.
+   */
   const confirmRemove = async (account: Account) => {
-    const fallback = await removeAccount(account.id);
-    load();
-
-    // Only the connection to the account that just went away is stale.
-    if (activeId !== account.id) return;
-
-    if (!fallback) {
-      client.disconnect();
-      router.replace('/connect');
+    setError(null);
+    const token = await getToken(account.id);
+    if (!token) {
+      // Nothing left to talk to the host with, so the local entry is all that
+      // can still be removed — and it is the only thing left of it here.
+      await removeAccount(account.id);
+      load();
       return;
     }
 
-    const token = await getToken(fallback.id);
-    if (token) client.connect(fallback.url, token);
+    // The removal runs over this account's own connection, so it has to be the
+    // one the app is holding.
+    if (activeId !== account.id) {
+      await setActive(account.id);
+      setActiveId(account.id);
+      client.connect(account.url, token);
+    }
+    router.push('/agent-remove');
   };
 
   return (
@@ -224,8 +241,8 @@ export default function AccountsScreen() {
 
         {accounts && accounts.length > 0 ? (
           <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
-            Zum Entfernen eine Kachel gedrückt halten. Das löscht nur das Token auf diesem Gerät —
-            der Agent auf dem Host läuft weiter.
+            Zum Entfernen eine Kachel gedrückt halten. Das räumt Uberapp auch auf dem Host ab —
+            deine eigenen Dienste dort bleiben unangetastet.
           </Body>
         ) : null}
       </ScrollView>
@@ -235,10 +252,10 @@ export default function AccountsScreen() {
         title="Zugang entfernen"
         message={
           toRemove
-            ? `${toRemove.label} wird von diesem Gerät entfernt und das Token gelöscht. Der Agent auf dem Host bleibt unberührt — du kannst den Zugang später neu einrichten.`
+            ? `Auf ${toRemove.label} werden die beiden Uberapp-Dienste, ihre Konfiguration, die Web-Backends, die Unterdomain, das Token und ~/uberapp gelöscht — und der Zugang danach von diesem Gerät. Deine eigenen Dienste bleiben.`
             : ''
         }
-        confirmLabel="Entfernen"
+        confirmLabel="Weiter"
         destructive
         onConfirm={() => {
           const account = toRemove;
