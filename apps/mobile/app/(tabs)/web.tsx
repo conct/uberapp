@@ -90,6 +90,38 @@ function DomainsCard({
     <Card>
       <SectionTitle>Domains</SectionTitle>
 
+      {add.error ? <ErrorBanner message={add.error} /> : null}
+      {add.output ? <OutputBlock text={add.output} /> : null}
+      {del.error ? <ErrorBanner message={del.error} /> : null}
+
+      <View style={{ gap: spacing.sm }}>
+        <Field
+          label="Domain hinzufügen"
+          value={newDomain}
+          onChangeText={setNewDomain}
+          placeholder="www.deine-domain.de"
+          keyboardType="url"
+          error={invalid ? 'Muss ein vollständiger Domainname sein' : null}
+          hint="Wildcards gehen nicht — jede Subdomain einzeln anlegen."
+        />
+        <Button
+          label="Hinzufügen"
+          variant="primary"
+          loading={add.pending}
+          disabled={!newDomain.trim() || invalid}
+          onPress={() => {
+            void add
+              .run({ domain: newDomain.trim() })
+              .then(() => setNewDomain(''))
+              .catch(() => {});
+          }}
+        />
+        <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
+          Nach dem Anlegen dauert es einige Minuten, bis Let&apos;s Encrypt das Zertifikat
+          ausgestellt hat.
+        </Body>
+      </View>
+
       {query.loading ? (
         <Loading />
       ) : query.error ? (
@@ -147,38 +179,6 @@ function DomainsCard({
         ))
       )}
 
-      {add.error ? <ErrorBanner message={add.error} /> : null}
-      {add.output ? <OutputBlock text={add.output} /> : null}
-      {del.error ? <ErrorBanner message={del.error} /> : null}
-
-      <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-        <Field
-          label="Domain hinzufügen"
-          value={newDomain}
-          onChangeText={setNewDomain}
-          placeholder="www.deine-domain.de"
-          keyboardType="url"
-          error={invalid ? 'Muss ein vollständiger Domainname sein' : null}
-          hint="Wildcards gehen nicht — jede Subdomain einzeln anlegen."
-        />
-        <Button
-          label="Hinzufügen"
-          variant="primary"
-          loading={add.pending}
-          disabled={!newDomain.trim() || invalid}
-          onPress={() => {
-            void add
-              .run({ domain: newDomain.trim() })
-              .then(() => setNewDomain(''))
-              .catch(() => {});
-          }}
-        />
-        <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
-          Nach dem Anlegen dauert es einige Minuten, bis Let&apos;s Encrypt das Zertifikat
-          ausgestellt hat.
-        </Body>
-      </View>
-
       <ConfirmDialog
         visible={toDelete !== null}
         title="Domain löschen"
@@ -220,6 +220,44 @@ function BackendsCard({
   return (
     <Card>
       <SectionTitle>Backends</SectionTitle>
+
+      {set.error ? <ErrorBanner message={set.error} /> : null}
+      {set.output ? <OutputBlock text={set.output} /> : null}
+      {del.error ? <ErrorBanner message={del.error} /> : null}
+
+      <View style={{ gap: spacing.sm }}>
+        <Field
+          label="Pfad"
+          value={path}
+          onChangeText={setPath}
+          placeholder="/"
+          error={pathInvalid ? 'Muss mit / beginnen' : null}
+        />
+        <Field
+          label="Port"
+          value={port}
+          onChangeText={setPort}
+          placeholder="9000"
+          keyboardType="numeric"
+          error={portInvalid ? '1024–65535' : null}
+          hint="Leer lassen, um wieder auf Apache zu leiten."
+        />
+        <Button
+          label={removePrefix ? '☑  Präfix entfernen' : '☐  Präfix entfernen'}
+          onPress={() => setRemovePrefix((value) => !value)}
+        />
+        <Button
+          label="Backend setzen"
+          variant="primary"
+          loading={set.pending}
+          disabled={pathInvalid || portInvalid}
+          onPress={() => setConfirmSet(true)}
+        />
+        <Body muted style={{ fontSize: 12 }}>
+          Deine Anwendung muss auf 0.0.0.0 lauschen — auf 127.0.0.1 erreicht der Webserver sie
+          nicht.
+        </Body>
+      </View>
 
       {query.loading ? (
         <Loading />
@@ -265,44 +303,6 @@ function BackendsCard({
           </View>
         ))
       )}
-
-      {set.error ? <ErrorBanner message={set.error} /> : null}
-      {set.output ? <OutputBlock text={set.output} /> : null}
-      {del.error ? <ErrorBanner message={del.error} /> : null}
-
-      <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-        <Field
-          label="Pfad"
-          value={path}
-          onChangeText={setPath}
-          placeholder="/"
-          error={pathInvalid ? 'Muss mit / beginnen' : null}
-        />
-        <Field
-          label="Port"
-          value={port}
-          onChangeText={setPort}
-          placeholder="9000"
-          keyboardType="numeric"
-          error={portInvalid ? '1024–65535' : null}
-          hint="Leer lassen, um wieder auf Apache zu leiten."
-        />
-        <Button
-          label={removePrefix ? '☑  Präfix entfernen' : '☐  Präfix entfernen'}
-          onPress={() => setRemovePrefix((value) => !value)}
-        />
-        <Button
-          label="Backend setzen"
-          variant="primary"
-          loading={set.pending}
-          disabled={pathInvalid || portInvalid}
-          onPress={() => setConfirmSet(true)}
-        />
-        <Body muted style={{ fontSize: 12 }}>
-          Deine Anwendung muss auf 0.0.0.0 lauschen — auf 127.0.0.1 erreicht der Webserver sie
-          nicht.
-        </Body>
-      </View>
 
       <ConfirmDialog
         visible={confirmSet}

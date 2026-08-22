@@ -98,6 +98,33 @@ function DomainsCard({
     <Card>
       <SectionTitle>Mail-Domains</SectionTitle>
 
+      {add.error ? <ErrorBanner message={add.error} /> : null}
+      {add.output ? <OutputBlock text={add.output} /> : null}
+      {del.error ? <ErrorBanner message={del.error} /> : null}
+
+      <View style={{ gap: spacing.sm }}>
+        <Field
+          label="Mail-Domain hinzufügen"
+          value={newDomain}
+          onChangeText={setNewDomain}
+          placeholder="deine-domain.de"
+          keyboardType="url"
+          error={invalid ? 'Muss ein vollständiger Domainname sein' : null}
+        />
+        <Button
+          label="Hinzufügen"
+          variant="primary"
+          loading={add.pending}
+          disabled={!newDomain.trim() || invalid}
+          onPress={() => {
+            void add
+              .run({ domain: newDomain.trim() })
+              .then(() => setNewDomain(''))
+              .catch(() => {});
+          }}
+        />
+      </View>
+
       {query.loading ? (
         <Loading />
       ) : query.error ? (
@@ -120,33 +147,6 @@ function DomainsCard({
           </View>
         ))
       )}
-
-      {add.error ? <ErrorBanner message={add.error} /> : null}
-      {add.output ? <OutputBlock text={add.output} /> : null}
-      {del.error ? <ErrorBanner message={del.error} /> : null}
-
-      <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-        <Field
-          label="Mail-Domain hinzufügen"
-          value={newDomain}
-          onChangeText={setNewDomain}
-          placeholder="deine-domain.de"
-          keyboardType="url"
-          error={invalid ? 'Muss ein vollständiger Domainname sein' : null}
-        />
-        <Button
-          label="Hinzufügen"
-          variant="primary"
-          loading={add.pending}
-          disabled={!newDomain.trim() || invalid}
-          onPress={() => {
-            void add
-              .run({ domain: newDomain.trim() })
-              .then(() => setNewDomain(''))
-              .catch(() => {});
-          }}
-        />
-      </View>
 
       <ConfirmDialog
         visible={toDelete !== null}
@@ -205,39 +205,11 @@ function MailboxesCard({
     <Card>
       <SectionTitle>Postfächer</SectionTitle>
 
-      {query.loading ? (
-        <Loading />
-      ) : query.error ? (
-        <ErrorBanner message={query.error} onRetry={query.refresh} />
-      ) : (query.data?.length ?? 0) === 0 ? (
-        <EmptyState title="Keine zusätzlichen Postfächer" />
-      ) : (
-        query.data?.map((entry) => (
-          <View
-            key={entry.name}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: spacing.sm,
-            }}
-          >
-            <Mono style={{ flexShrink: 1 }}>{entry.name}</Mono>
-            <View style={{ flexDirection: 'row', gap: spacing.xs }}>
-              {interactive ? (
-                <Button label="Passwort" onPress={() => setChanging(entry.name)} />
-              ) : null}
-              <Button label="Löschen" variant="danger" onPress={() => setToDelete(entry.name)} />
-            </View>
-          </View>
-        ))
-      )}
-
       {add.error ? <ErrorBanner message={add.error} /> : null}
       {add.output ? <OutputBlock text={add.output} /> : null}
       {del.error ? <ErrorBanner message={del.error} /> : null}
 
-      <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+      <View style={{ gap: spacing.sm }}>
         <Field
           label="Neues Postfach"
           value={name}
@@ -268,6 +240,34 @@ function MailboxesCard({
           onPress={() => setConfirmCreate(true)}
         />
       </View>
+
+      {query.loading ? (
+        <Loading />
+      ) : query.error ? (
+        <ErrorBanner message={query.error} onRetry={query.refresh} />
+      ) : (query.data?.length ?? 0) === 0 ? (
+        <EmptyState title="Keine zusätzlichen Postfächer" />
+      ) : (
+        query.data?.map((entry) => (
+          <View
+            key={entry.name}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: spacing.sm,
+            }}
+          >
+            <Mono style={{ flexShrink: 1 }}>{entry.name}</Mono>
+            <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+              {interactive ? (
+                <Button label="Passwort" onPress={() => setChanging(entry.name)} />
+              ) : null}
+              <Button label="Löschen" variant="danger" onPress={() => setToDelete(entry.name)} />
+            </View>
+          </View>
+        ))
+      )}
 
       <ConfirmDialog
         visible={confirmCreate}
