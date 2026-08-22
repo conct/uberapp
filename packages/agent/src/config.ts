@@ -2,7 +2,16 @@ import { homedir, hostname, userInfo } from 'node:os';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-export const AGENT_VERSION = '0.1.0';
+/**
+ * Reported by /healthz and in the hello message, so it answers one question
+ * from outside: which build is actually running on the host.
+ *
+ * It stayed at 0.1.0 through every deploy, which made "did the update land?"
+ * unanswerable without SSH — the agent would happily report the same version
+ * before and after. Raise it whenever the agent gains or changes a method.
+ * Keep it in step with packages/agent/package.json.
+ */
+export const AGENT_VERSION = '0.2.0';
 
 export interface AgentConfig {
   /** Shared secret the client must present. */
