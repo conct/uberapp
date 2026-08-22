@@ -26,7 +26,7 @@ export const CONNECT_PATH = 'connect';
 export const INSTALL_DIR = 'uberapp';
 export const REPO_URL = 'https://github.com/conct/uberapp.git';
 
-export type StepId = 'check' | 'fetch' | 'install' | 'expose' | 'verify';
+export type StepId = 'check' | 'key' | 'fetch' | 'install' | 'expose' | 'verify';
 export type StepState = 'pending' | 'running' | 'ok' | 'failed';
 
 export interface ProvisionStep {
@@ -44,6 +44,7 @@ export interface ProvisionResult {
 export function initialSteps(): ProvisionStep[] {
   return [
     { id: 'check', title: 'Host prüfen', state: 'pending' },
+    { id: 'key', title: 'Schlüssel hinterlegen', state: 'pending' },
     { id: 'fetch', title: 'Projekt holen', state: 'pending' },
     { id: 'install', title: 'Agent bauen und starten', state: 'pending' },
     { id: 'expose', title: 'Erreichbar machen', state: 'pending' },
@@ -95,6 +96,15 @@ export interface ProvisionOptions {
   domain?: string | null;
   onStep: (id: StepId, patch: Partial<ProvisionStep>) => void;
   onOutput?: (chunk: string) => void;
+  /**
+   * The public half of a key generated on the device, to be installed in the
+   * host's authorized_keys so no later run needs the password again. Absent
+   * when this run already authenticated with a key, or on a build with no
+   * crypto to generate one.
+   */
+  authorizedKey?: string | null;
+  /** The shell that installs it, built beside the key that it carries. */
+  installKeyCommand?: (authorizedKey: string) => string;
 }
 
 export async function provision(options: ProvisionOptions): Promise<ProvisionResult> {
@@ -166,6 +176,24 @@ export async function provision(options: ProvisionOptions): Promise<ProvisionRes
     },
     (version) => `Node ${version}`,
   );
+
+  // --- 1b. leave a key behind so this is the last password -----------------
+  //
+  // Deliberately not fatal. A host that will not take the key is unusual but
+  // survivable — the setup still works, it just asks for the password again
+  // next time. Failing the whole installation over a convenience would be the
+  // wrong trade, so this step reports what happened and moves on.
+  await step('key', async () => {
+    const line = options.authorizedKey;
+    const build = options.installKeyCommand;
+    if (!line || !build) return 'übersprungen';
+
+    const result = await runner.run(credentials, build(line));
+    if (result.code !== 0) {
+      return `nicht möglich: ${reason(result.stderr || result.stdout, 'unbekannter Grund')}`;
+    }
+    return 'eingetragen';
+  }, (detail) => detail);
 
   // --- 2. get the sources onto the host ------------------------------------
   await step('fetch', async () =>

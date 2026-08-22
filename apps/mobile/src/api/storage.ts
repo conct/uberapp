@@ -263,3 +263,37 @@ export async function clearCredentials(): Promise<void> {
     removeItem(LEGACY_TOKEN_KEY),
   ]);
 }
+
+// --- SSH keys ---------------------------------------------------------------
+
+/**
+ * The private key that replaces the account password on later setup runs.
+ *
+ * Kept under the SSH target rather than the account id, because the two are
+ * not the same thing: a host is set up before any account exists for it, and
+ * the same host may be reachable under more than one agent address. What the
+ * key belongs to is the login it was installed for.
+ *
+ * Never stored where the OS cannot protect it. On web that means not at all,
+ * which costs nothing: a browser cannot open an SSH connection anyway.
+ */
+const SSH_KEY_PREFIX = 'uberapp.sshkey.';
+
+function sshKeyKey(host: string, user: string): string {
+  return `${SSH_KEY_PREFIX}${user}@${host}`.toLowerCase();
+}
+
+export async function saveSshKey(host: string, user: string, privateKey: string): Promise<void> {
+  if (!secureStorageAvailable) return;
+  await setItem(sshKeyKey(host, user), privateKey);
+}
+
+export async function loadSshKey(host: string, user: string): Promise<string | null> {
+  if (!secureStorageAvailable) return null;
+  return getItem(sshKeyKey(host, user));
+}
+
+export async function removeSshKey(host: string, user: string): Promise<void> {
+  if (!secureStorageAvailable) return;
+  await removeItem(sshKeyKey(host, user));
+}

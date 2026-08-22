@@ -10,12 +10,13 @@
  * token, and that is a different secret with a much smaller blast radius.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { client } from '../src/api/client';
-import { saveCredentials } from '../src/api/storage';
+import { canStoreKeys, generateKey, installKeyCommand } from '../src/api/sshKey';
+import { loadSshKey, saveCredentials, saveSshKey } from '../src/api/storage';
 import { initialSteps, provision, type ProvisionStep, type StepId } from '../src/api/provision';
 import {
   credentialsProblem,
@@ -76,10 +77,38 @@ export default function SetupSshScreen() {
   const parsed = parseSshTarget(target);
   const effectiveUser = (user.trim() || parsed.user || '').toLowerCase();
 
+  /**
+   * A key this device installed on that login during an earlier setup.
+   *
+   * Looked up as the host and user are typed, so the password field can say it
+   * is optional before someone reaches for their password manager.
+   */
+  const [storedKey, setStoredKey] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const found =
+        parsed.host && effectiveUser ? await loadSshKey(parsed.host, effectiveUser) : null;
+      if (!cancelled) setStoredKey(found);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [parsed.host, effectiveUser]);
+
+  // An empty password with a key on file means the key: that is the whole
+  // point of having installed it. A typed password still wins, because the
+  // reason to type one is usually that the key stopped working.
+  const useStoredKey = mode === 'password' && !password && storedKey !== null;
+
   const credentials: SshCredentials = {
     host: parsed.host,
     user: effectiveUser,
-    ...(mode === 'password' ? { password } : { privateKey }),
+    ...(mode === 'password'
+      ? useStoredKey
+        ? { privateKey: storedKey as string }
+        : { password }
+      : { privateKey }),
   };
   const problem = credentialsProblem(credentials);
 
@@ -98,6 +127,18 @@ export default function SetupSshScreen() {
       setSteps(current);
     };
 
+    // Generated per run and installed during it, so the password typed above
+    // is the last one this host needs. Only when a password is what got us in:
+    // logging in with a key already means there is one.
+    let generated: ReturnType<typeof generateKey> | null = null;
+    if (mode === 'password' && canStoreKeys) {
+      try {
+        generated = generateKey(`uberapp@${effectiveUser}`);
+      } catch {
+        // No crypto in this build. The setup works, it just stays password-only.
+      }
+    }
+
     try {
       const result = await provision({
         credentials,
@@ -105,7 +146,14 @@ export default function SetupSshScreen() {
         domain: domain.trim() || null,
         onStep: mark,
         onOutput: (chunk) => setOutput((previous) => [...previous, chunk].slice(-200)),
+        authorizedKey: generated?.authorizedKey ?? null,
+        installKeyCommand,
       });
+
+      // Kept only after the host accepted it, and kept under the login it was
+      // installed for rather than the account: the same host can be reached
+      // under more than one agent address.
+      if (generated) await saveSshKey(parsed.host, effectiveUser, generated.privateKey);
 
       // Only now does anything get stored, and only the agent's own address
       // and token — never what got us onto the host.
@@ -211,7 +259,11 @@ export default function SetupSshScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
-                  hint="Wird nur für diesen Vorgang benutzt und danach verworfen — nirgends gespeichert."
+                  hint={
+                    storedKey
+                      ? 'Für diesen Zugang liegt ein Schlüssel auf dem Gerät — leer lassen genügt.'
+                      : 'Wird nur für diesen Vorgang benutzt und danach verworfen — nirgends gespeichert.'
+                  }
                 />
               ) : (
                 <Field
