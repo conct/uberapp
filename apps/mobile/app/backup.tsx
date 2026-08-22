@@ -34,7 +34,6 @@ import {
   Mono,
   OutputBlock,
   SectionTitle,
-  Title,
   spacing,
   radius,
 } from '../src/ui/components';
@@ -108,7 +107,6 @@ export default function BackupScreen() {
   return (
     <ScreenScroll refreshing={snapshots.refreshing} onRefresh={snapshots.refresh}>
       <View style={{ gap: spacing.xs }}>
-        <Title>Backup</Title>
         <Body muted>
           {BACKUP_RETENTION.dailyDays} Tage täglich, {BACKUP_RETENTION.weeklyWeeks} Wochen
           wöchentlich, Datenbank-Dumps {BACKUP_RETENTION.databaseDays} Tage.

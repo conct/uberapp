@@ -30,7 +30,6 @@ import {
   Mono,
   OutputBlock,
   SectionTitle,
-  Title,
   spacing,
 } from '../src/ui/components';
 import { ScreenScroll } from '../src/ui/Screen';
@@ -69,7 +68,6 @@ export default function PortsScreen() {
   return (
     <ScreenScroll refreshing={ports.refreshing} onRefresh={ports.refresh}>
       <View style={{ gap: spacing.xs }}>
-        <Title>Ports</Title>
         <Body muted>Freigaben in der Firewall deines Uberspace</Body>
       </View>
 

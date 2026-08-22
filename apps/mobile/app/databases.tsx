@@ -33,7 +33,6 @@ import {
   Mono,
   OutputBlock,
   SectionTitle,
-  Title,
   spacing,
 } from '../src/ui/components';
 import { ScreenScroll } from '../src/ui/Screen';
@@ -87,7 +86,6 @@ export default function DatabasesScreen() {
   return (
     <ScreenScroll refreshing={databases.refreshing} onRefresh={databases.refresh}>
       <View style={{ gap: spacing.xs }}>
-        <Title>Datenbanken</Title>
         <Body muted>MariaDB auf deinem Uberspace</Body>
       </View>
 

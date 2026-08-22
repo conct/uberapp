@@ -20,7 +20,6 @@ import {
   Mono,
   OutputBlock,
   SectionTitle,
-  Title,
   spacing,
 } from '../../src/ui/components';
 import { ScreenScroll } from '../../src/ui/Screen';
@@ -56,7 +55,6 @@ export default function ServicesScreen() {
   return (
     <ScreenScroll refreshing={services.refreshing} onRefresh={services.refresh}>
       <View style={{ gap: spacing.xs }}>
-        <Title>Services</Title>
         <Body muted>supervisord auf deinem Uberspace</Body>
       </View>
 

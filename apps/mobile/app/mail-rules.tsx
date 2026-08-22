@@ -34,7 +34,6 @@ import {
   Loading,
   Mono,
   SectionTitle,
-  Title,
   Toggle,
   spacing,
 } from '../src/ui/components';
@@ -51,7 +50,6 @@ export default function MailRulesScreen() {
   return (
     <ScreenScroll refreshing={users.refreshing} onRefresh={users.refresh}>
       <View style={{ gap: spacing.xs }}>
-        <Title>Regeln & Filter</Title>
         <Body muted>Catch-all, Spam, Weiterleitungen und Sieve</Body>
       </View>
 

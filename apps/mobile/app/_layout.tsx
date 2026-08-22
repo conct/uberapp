@@ -8,6 +8,7 @@ import { useColorScheme } from 'react-native';
 
 import { client } from '../src/api/client';
 import { listAccounts, loadCredentials } from '../src/api/storage';
+import { AppBar } from '../src/ui/AppBar';
 import { Loading } from '../src/ui/components';
 import { useTheme } from '../src/ui/theme';
 
@@ -68,9 +69,17 @@ export default function RootLayout() {
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: theme.surface },
-          headerTintColor: theme.text,
-          headerTitleStyle: { fontWeight: '700' },
+          /*
+            The same bar the tabs carry, so a pushed screen does not change
+            height, colour and padding on the way in. It brings its own back
+            arrow; the stack only says whether there is anywhere to go.
+          */
+          header: ({ options, navigation, back }) => (
+            <AppBar
+              title={options.title}
+              onBack={back ? () => navigation.goBack() : undefined}
+            />
+          ),
           contentStyle: { backgroundColor: theme.bg },
         }}
       >

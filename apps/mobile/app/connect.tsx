@@ -45,9 +45,23 @@ export default function ConnectScreen() {
   const [probing, setProbing] = useState(false);
   const [touched, setTouched] = useState(false);
 
+  /**
+   * Which way in, asked once rather than shown as two half-filled forms.
+   *
+   * Somebody arriving here for the first time has no address and no token and
+   * cannot tell from a form which of the two fields they are supposed to be
+   * able to fill. So the screen asks, and only then shows what that answer
+   * needs. Anyone who already has an account is past the question — they came
+   * to edit or to add, and the form is what they want.
+   */
+  const [chosen, setChosen] = useState<'ssh' | 'manual' | null>(null);
+  const [hasAccount, setHasAccount] = useState<boolean | null>(null);
+  const asking = hasAccount === false && chosen === null;
+
 
   useEffect(() => {
     void loadCredentials().then((credentials) => {
+      setHasAccount(credentials !== null);
       // Pre-fill only when this screen is editing the connection that already
       // exists. Reached as "add another Uberspace", the same fields would hold
       // the *other* account's address, and saving would overwrite it rather
@@ -189,19 +203,39 @@ export default function ConnectScreen() {
           </Body>
         </View>
 
-        {connection.state !== 'ready' ? (
-          <Card>
-            <SectionTitle>Einfache Einrichtung</SectionTitle>
-            <Body muted>
-              Du gibst deine Uberspace-Zugangsdaten ein, die App installiert den Agenten selbst und
-              trägt Adresse und Token danach von allein ein. {sshHint()}
-            </Body>
-            <Link href="/setup-ssh" asChild>
-              <Button label="Einfach einrichten" variant="primary" onPress={() => {}} />
-            </Link>
-          </Card>
+        {/*
+          Asked once, on a device that knows no Uberspace yet. Two forms side by
+          side put the burden of choosing on someone who has no way to tell
+          which fields they could even fill: the address and token only exist
+          after the agent is installed, so offering them first asks for
+          something that cannot be had yet.
+        */}
+        {asking ? (
+          <>
+            <Card>
+              <SectionTitle>Einfach einrichten</SectionTitle>
+              <Body muted>
+                Du gibst deine Uberspace-Zugangsdaten ein, die App installiert den Agenten selbst
+                und trägt Adresse und Token danach von allein ein. Danach läuft alles über den
+                Agenten, dein SSH-Passwort wird verworfen. {sshHint()}
+              </Body>
+              <Link href="/setup-ssh" asChild>
+                <Button label="Einfach einrichten" variant="primary" onPress={() => {}} />
+              </Link>
+            </Card>
+
+            <Card>
+              <SectionTitle>Manuell</SectionTitle>
+              <Body muted>
+                Für alle, die den Agenten selbst installiert haben oder es lieber von Hand tun.
+                Adresse und Token trägst du dann selbst ein.
+              </Body>
+              <Button label="Manuell einrichten" onPress={() => setChosen('manual')} />
+            </Card>
+          </>
         ) : null}
 
+        {asking ? null : (
         <Card>
           <Field
             label="Adresse des Agenten"
@@ -244,6 +278,7 @@ export default function ConnectScreen() {
             <ErrorBanner message={connection.error} />
           ) : null}
         </Card>
+        )}
 
         {connection.session ? (
           <Card>

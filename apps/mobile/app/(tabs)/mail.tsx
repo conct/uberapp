@@ -31,7 +31,6 @@ import {
   Mono,
   OutputBlock,
   SectionTitle,
-  Title,
   spacing,
 } from '../../src/ui/components';
 import { ScreenScroll } from '../../src/ui/Screen';
@@ -51,7 +50,6 @@ export default function MailScreen() {
   return (
     <ScreenScroll refreshing={domains.refreshing} onRefresh={refresh}>
       <View style={{ gap: spacing.xs }}>
-        <Title>Mail</Title>
         <Body muted>Domains und Postfächer</Body>
       </View>
 

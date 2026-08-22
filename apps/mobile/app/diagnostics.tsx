@@ -30,7 +30,6 @@ import {
   Mono,
   OutputBlock,
   SectionTitle,
-  Title,
   spacing,
   radius,
 } from '../src/ui/components';
@@ -41,7 +40,6 @@ export default function DiagnosticsScreen() {
   return (
     <ScreenScroll>
       <View style={{ gap: spacing.xs }}>
-        <Title>Diagnose</Title>
         <Body muted>Speicher, Arbeitsspeicher und Login-Shell</Body>
       </View>
 

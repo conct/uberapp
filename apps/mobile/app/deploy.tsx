@@ -43,7 +43,6 @@ import {
   Mono,
   OutputBlock,
   SectionTitle,
-  Title,
   Toggle,
   spacing,
 } from '../src/ui/components';
@@ -215,7 +214,6 @@ export default function DeployScreen() {
   return (
     <ScreenScroll>
       <View style={{ gap: spacing.xs }}>
-        <Title>Dienst anlegen</Title>
         <Body muted>
           Konfiguration schreiben, einlesen, starten und erreichbar machen — in einem Durchgang.
         </Body>

@@ -37,7 +37,6 @@ import {
   Loading,
   Mono,
   SectionTitle,
-  Title,
   spacing,
   radius,
 } from '../src/ui/components';
@@ -103,7 +102,6 @@ export default function AccountsScreen() {
       <ConnectionStrip />
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
         <View style={{ gap: spacing.xs }}>
-          <Title>Uberspaces</Title>
           <Body muted>
             {accounts === null
               ? 'Wird geladen…'

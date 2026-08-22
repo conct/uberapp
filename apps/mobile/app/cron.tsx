@@ -29,7 +29,6 @@ import {
   Loading,
   Mono,
   SectionTitle,
-  Title,
   Toggle,
   spacing,
 } from '../src/ui/components';
@@ -71,7 +70,6 @@ export default function CronScreen() {
   return (
     <ScreenScroll refreshing={crontab.refreshing} onRefresh={crontab.refresh}>
       <View style={{ gap: spacing.xs }}>
-        <Title>Cron</Title>
         <Body muted>Geplante Aufgaben deines Uberspace</Body>
       </View>
 

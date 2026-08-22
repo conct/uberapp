@@ -24,7 +24,6 @@ import {
   Loading,
   Mono,
   SectionTitle,
-  Title,
   spacing,
 } from '../../src/ui/components';
 import { ScreenScroll } from '../../src/ui/Screen';
@@ -58,7 +57,6 @@ export default function FilesScreen() {
   return (
     <ScreenScroll refreshing={listing.refreshing} onRefresh={listing.refresh}>
       <View style={{ gap: spacing.xs }}>
-        <Title>Dateien</Title>
         <Mono style={{ color: theme.textMuted, fontSize: 12 }}>{currentPath}</Mono>
       </View>
 

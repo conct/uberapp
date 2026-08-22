@@ -27,7 +27,6 @@ import {
   Mono,
   OutputBlock,
   SectionTitle,
-  Title,
   spacing,
 } from '../../src/ui/components';
 import { ScreenScroll } from '../../src/ui/Screen';
@@ -47,7 +46,6 @@ export default function WebScreen() {
   return (
     <ScreenScroll refreshing={domains.refreshing} onRefresh={refresh}>
       <View style={{ gap: spacing.xs }}>
-        <Title>Web</Title>
         <Body muted>Domains, Backends und Logs</Body>
       </View>
 

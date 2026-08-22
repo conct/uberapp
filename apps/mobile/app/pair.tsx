@@ -31,7 +31,6 @@ import {
   Loading,
   Mono,
   SectionTitle,
-  Title,
   spacing,
 } from '../src/ui/components';
 import { QrScanner } from '../src/ui/QrScanner';
@@ -129,7 +128,6 @@ export default function PairScreen() {
   return (
     <ScreenScroll refreshing={tokens.refreshing} onRefresh={tokens.refresh}>
       <View style={{ gap: spacing.xs }}>
-        <Title>Gerät koppeln</Title>
         <Body muted>Einen zweiten Zugang erzeugen, ohne dein eigenes Token weiterzugeben</Body>
       </View>
 

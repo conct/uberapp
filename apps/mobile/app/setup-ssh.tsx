@@ -16,12 +16,7 @@ import { useRouter } from 'expo-router';
 
 import { client } from '../src/api/client';
 import { saveCredentials } from '../src/api/storage';
-import {
-  initialSteps,
-  provision,
-  type ProvisionStep,
-  type StepId,
-} from '../src/api/provision';
+import { initialSteps, provision, type ProvisionStep, type StepId } from '../src/api/provision';
 import {
   credentialsProblem,
   getSshRunner,
@@ -42,7 +37,6 @@ import {
   Mono,
   OutputBlock,
   SectionTitle,
-  Title,
   spacing,
 } from '../src/ui/components';
 import { ConnectionStrip } from '../src/ui/Screen';
@@ -105,8 +99,7 @@ export default function SetupSshScreen() {
         runner,
         domain: domain.trim() || null,
         onStep: mark,
-        onOutput: (chunk) =>
-          setOutput((previous) => [...previous, chunk].slice(-200)),
+        onOutput: (chunk) => setOutput((previous) => [...previous, chunk].slice(-200)),
       });
 
       // Only now does anything get stored, and only the agent's own address
@@ -124,149 +117,166 @@ export default function SetupSshScreen() {
   if (!availability.available) {
     return (
       <KeyboardAvoidingView
-          style={{ flex: 1, backgroundColor: theme.bg }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <ConnectionStrip />
-          <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
-        <View style={{ gap: spacing.xs }}>
-          <Title>Einfache Einrichtung</Title>
-          <Body muted>Hier nicht verfügbar</Body>
-        </View>
-        <Card>
-          <SectionTitle>Warum nicht</SectionTitle>
-          <Body>{availability.reason}</Body>
-          {availability.remedy ? <InfoBanner message={availability.remedy} /> : null}
-          <Button label="Zur fortgeschrittenen Einrichtung" onPress={() => router.replace('/connect')} />
-        </Card>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        style={{ flex: 1, backgroundColor: theme.bg }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ConnectionStrip />
+        <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+          <View style={{ gap: spacing.xs }}>
+            <Body muted>Hier nicht verfügbar</Body>
+          </View>
+          <Card>
+            <SectionTitle>Warum nicht</SectionTitle>
+            <Body>{availability.reason}</Body>
+            {availability.remedy ? <InfoBanner message={availability.remedy} /> : null}
+            <Button
+              label="Zur fortgeschrittenen Einrichtung"
+              onPress={() => router.replace('/connect')}
+            />
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
   return (
     <KeyboardAvoidingView
-          style={{ flex: 1, backgroundColor: theme.bg }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <ConnectionStrip />
-          <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
-      <View style={{ gap: spacing.xs }}>
-        <Title>Einfache Einrichtung</Title>
-        <Body muted>
-          Die App meldet sich einmal per SSH an und installiert den Agenten selbst.
-        </Body>
-      </View>
+      style={{ flex: 1, backgroundColor: theme.bg }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ConnectionStrip />
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+        <View style={{ gap: spacing.xs }}>
+          <Body muted>
+            Die App meldet sich einmal per SSH an und installiert den Agenten selbst.
+          </Body>
+        </View>
 
-      <Card>
-        <SectionTitle>Dein Uberspace</SectionTitle>
-        <Field
-          label="Host"
-          value={target}
-          onChangeText={setTarget}
-          placeholder="stardust.uberspace.de"
-          keyboardType="url"
-          hint={
-            parsed.host && parsed.host !== target.trim().toLowerCase()
-              ? `Wird zu ${parsed.host}`
-              : 'Kurzform reicht — .uberspace.de wird ergänzt.'
-          }
-        />
-        <Field
-          label="Benutzername"
-          value={user || parsed.user || ''}
-          onChangeText={setUser}
-          placeholder="isabell"
-        />
+        {/*
+        While a run is going, the form has nothing left to say: the values are
+        already in flight and changing one would not affect what is happening.
+        What matters then is which step is where, so that is all that stays.
+        It comes back if a step fails, because then the values are exactly what
+        wants correcting.
+      */}
+        {running ? null : (
+          <>
+            <Card>
+              <SectionTitle>Dein Uberspace</SectionTitle>
+              <Field
+                label="Host"
+                value={target}
+                onChangeText={setTarget}
+                placeholder="stardust.uberspace.de"
+                keyboardType="url"
+                hint={
+                  parsed.host && parsed.host !== target.trim().toLowerCase()
+                    ? `Wird zu ${parsed.host}`
+                    : 'Kurzform reicht — .uberspace.de wird ergänzt.'
+                }
+              />
+              <Field
+                label="Benutzername"
+                value={user || parsed.user || ''}
+                onChangeText={setUser}
+                placeholder="isabell"
+              />
 
-        <SectionTitle>Anmeldung</SectionTitle>
-        <ChoiceGroup
-          options={[
-            { value: 'password', label: 'Passwort', hint: 'Dein Uberspace-Passwort.' },
-            {
-              value: 'key',
-              label: 'Privater Schlüssel',
-              hint: 'Inhalt einer Schlüsseldatei, falls du dich damit anmeldest.',
-            },
-          ]}
-          value={mode}
-          onChange={setMode}
-        />
+              <SectionTitle>Anmeldung</SectionTitle>
+              <ChoiceGroup
+                options={[
+                  {
+                    value: 'password',
+                    label: 'Passwort',
+                    hint: 'Dein Uberspace-Passwort.',
+                  },
+                  {
+                    value: 'key',
+                    label: 'Privater Schlüssel',
+                    hint: 'Inhalt einer Schlüsseldatei, falls du dich damit anmeldest.',
+                  },
+                ]}
+                value={mode}
+                onChange={setMode}
+              />
 
-        {mode === 'password' ? (
-          <Field
-            label="Passwort"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            hint="Wird nur für diesen Vorgang benutzt und danach verworfen — nirgends gespeichert."
-          />
-        ) : (
-          <Field
-            label="Privater Schlüssel"
-            value={privateKey}
-            onChangeText={setPrivateKey}
-            multiline
-            monospace
-            hint="Beginnt mit -----BEGIN OPENSSH PRIVATE KEY-----. Wird nicht gespeichert."
-          />
+              {mode === 'password' ? (
+                <Field
+                  label="Passwort"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  hint="Wird nur für diesen Vorgang benutzt und danach verworfen — nirgends gespeichert."
+                />
+              ) : (
+                <Field
+                  label="Privater Schlüssel"
+                  value={privateKey}
+                  onChangeText={setPrivateKey}
+                  multiline
+                  monospace
+                  hint="Beginnt mit -----BEGIN OPENSSH PRIVATE KEY-----. Wird nicht gespeichert."
+                />
+              )}
+
+              <Field
+                label="Eigene Domain (optional)"
+                value={domain}
+                onChangeText={setDomain}
+                placeholder="uberapp.deine-domain.de"
+                keyboardType="url"
+                hint="Leer lassen: der Agent landet auf <benutzer>.uber.space/uberapp, das braucht kein DNS."
+              />
+            </Card>
+          </>
         )}
 
-        <Field
-          label="Eigene Domain (optional)"
-          value={domain}
-          onChangeText={setDomain}
-          placeholder="uberapp.deine-domain.de"
-          keyboardType="url"
-          hint="Leer lassen: der Agent landet auf <benutzer>.uber.space/uberapp, das braucht kein DNS."
-        />
-      </Card>
+        {problem && !running ? <InfoBanner message={problem} /> : null}
+        {error ? <ErrorBanner message={error} /> : null}
 
-      {problem && !running ? <InfoBanner message={problem} /> : null}
-      {error ? <ErrorBanner message={error} /> : null}
-
-      {steps ? (
-        <Card>
-          <SectionTitle>Ablauf</SectionTitle>
-          {steps.map((step) => (
-            <StepRow key={step.id} step={step} theme={theme} />
-          ))}
-          {/*
+        {steps ? (
+          <Card>
+            <SectionTitle>Ablauf</SectionTitle>
+            {steps.map((step) => (
+              <StepRow key={step.id} step={step} theme={theme} />
+            ))}
+            {/*
             The raw session output, kept for the one case that needs it.
             Watching a wall of build log scroll past says nothing a person can
             act on — the step list already says where things are. When a step
             fails, though, this is the only place the reason survives, so it
             appears then and only then.
           */}
-          {failed && output.length > 0 ? <OutputBlock text={output.join('')} /> : null}
-        </Card>
-      ) : null}
+            {failed && output.length > 0 ? <OutputBlock text={output.join('')} /> : null}
+          </Card>
+        ) : null}
 
-      <Button
-        label="Einrichten"
-        variant="primary"
-        onPress={() => setConfirming(true)}
-        disabled={problem !== null || running}
-        loading={running}
-      />
+        {running ? null : (
+          <Button
+            label={failed ? 'Erneut versuchen' : 'Einrichten'}
+            variant="primary"
+            onPress={() => setConfirming(true)}
+            disabled={problem !== null}
+          />
+        )}
 
-      <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
-        Dein Uberspace-Passwort verlässt dieses Gerät nur in Richtung deines eigenen Hosts und wird
-        nach der Einrichtung verworfen. Gespeichert wird ausschliesslich das Agent-Token.
-      </Body>
+        <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
+          Dein Uberspace-Passwort verlässt dieses Gerät nur in Richtung deines eigenen Hosts und
+          wird nach der Einrichtung verworfen. Gespeichert wird ausschliesslich das Agent-Token.
+        </Body>
 
-      <ConfirmDialog
-        visible={confirming}
-        title="Einrichtung starten"
-        message={`Die App meldet sich als ${credentials.user} auf ${credentials.host} an, holt das Projekt, baut den Agenten und macht ihn erreichbar. Das dauert ein bis zwei Minuten.`}
-        confirmLabel="Los"
-        onConfirm={() => {
-          setConfirming(false);
-          void run();
-        }}
-        onCancel={() => setConfirming(false)}
-      />
-    </ScrollView>
+        <ConfirmDialog
+          visible={confirming}
+          title="Einrichtung starten"
+          message={`Die App meldet sich als ${credentials.user} auf ${credentials.host} an, holt das Projekt, baut den Agenten und macht ihn erreichbar. Das dauert ein bis zwei Minuten.`}
+          confirmLabel="Los"
+          onConfirm={() => {
+            setConfirming(false);
+            void run();
+          }}
+          onCancel={() => setConfirming(false)}
+        />
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -282,7 +292,13 @@ function StepRow({ step, theme }: { step: ProvisionStep; theme: Theme }) {
           : { label: 'offen', color: theme.textFaint };
 
   return (
-    <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        gap: spacing.md,
+        alignItems: 'flex-start',
+      }}
+    >
       <View style={{ paddingTop: 2 }}>
         <Badge label={visual.label} color={visual.color} />
       </View>

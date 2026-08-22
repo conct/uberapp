@@ -52,13 +52,27 @@ function statusColor(state: ReturnType<typeof useConnection>['state'], theme: Th
   return theme.warning;
 }
 
-export function AppBar() {
+export interface AppBarProps {
+  /** Given on a pushed screen, where the route has its own name. */
+  title?: string;
+  /** Present when there is somewhere to go back to. */
+  onBack?: () => void;
+}
+
+/**
+ * Both bars are this one.
+ *
+ * A pushed screen gets a back arrow and its own title; a tab gets the quick
+ * actions. Two components would drift apart in height, colour and padding, and
+ * the seam would show every time a tab pushes a screen.
+ */
+export function AppBar({ title: given, onBack }: AppBarProps = {}) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const connection = useConnection();
 
-  const title = TITLES[pathname] ?? 'Uberapp';
+  const title = given ?? TITLES[pathname] ?? 'Uberapp';
 
   return (
     <View
@@ -82,15 +96,27 @@ export function AppBar() {
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 }}>
-          <View
-            accessibilityLabel={`Verbindung: ${connection.state}`}
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: statusColor(connection.state, theme),
-            }}
-          />
+          {onBack ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Zurück"
+              onPress={onBack}
+              hitSlop={12}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+            >
+              <Ionicons name="chevron-back" size={24} color={theme.text} />
+            </Pressable>
+          ) : (
+            <View
+              accessibilityLabel={`Verbindung: ${connection.state}`}
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: statusColor(connection.state, theme),
+              }}
+            />
+          )}
           <Text
             numberOfLines={1}
             style={{ color: theme.text, fontSize: 18, fontWeight: '700', flexShrink: 1 }}
@@ -99,8 +125,8 @@ export function AppBar() {
           </Text>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {ACTIONS.map((action) => (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          {(onBack ? [] : ACTIONS).map((action) => (
             <Link key={action.href} href={action.href} asChild>
               <Pressable
                 accessibilityRole="button"
