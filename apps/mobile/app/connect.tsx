@@ -56,7 +56,12 @@ export default function ConnectScreen() {
    */
   const [chosen, setChosen] = useState<'ssh' | 'manual' | null>(null);
   const [hasAccount, setHasAccount] = useState<boolean | null>(null);
-  const asking = hasAccount === false && chosen === null;
+  // Asked on a device that knows no Uberspace yet - and again when this
+  // screen is opened to add another one. Leaving the second case out sent
+  // anyone adding an Uberspace straight into the manual form, with no route
+  // to the SSH setup at all: the automatic path existed but was unreachable
+  // for every account after the first.
+  const asking = (hasAccount === false || addingNew) && chosen === null;
 
 
   useEffect(() => {
@@ -197,9 +202,11 @@ export default function ConnectScreen() {
     >
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
         <View style={{ gap: spacing.sm }}>
-          <Title>Mit dem Uberspace verbinden</Title>
+          <Title>{addingNew ? 'Weiteren Uberspace hinzufügen' : 'Mit dem Uberspace verbinden'}</Title>
           <Body muted>
-            Die App spricht mit dem Agenten, der auf deinem Uberspace läuft — nicht direkt per SSH.
+            {addingNew
+              ? 'Der bestehende Zugang bleibt unberührt — dieser kommt daneben und lässt sich später umschalten.'
+              : 'Die App spricht mit dem Agenten, der auf deinem Uberspace läuft — nicht direkt per SSH.'}
           </Body>
         </View>
 
@@ -280,7 +287,14 @@ export default function ConnectScreen() {
         </Card>
         )}
 
-        {connection.session ? (
+        {/*
+          Both cards below describe the connection that already exists. While
+          this screen is adding a *different* Uberspace they are worse than
+          noise: they show the running host's user, address and version as if
+          they belonged to the account being created, and "Zugangsdaten
+          löschen" acts on the active account, not the new one.
+        */}
+        {connection.session && !addingNew ? (
           <Card>
             <SectionTitle>Verbunden</SectionTitle>
             <KeyValue label="Benutzer" value={connection.session.user} />
@@ -306,7 +320,7 @@ export default function ConnectScreen() {
           </Card>
         ) : null}
 
-        {connection.state === 'ready' ? (
+        {connection.state === 'ready' && !addingNew ? (
           <Card>
             <SectionTitle>Gerät koppeln</SectionTitle>
             <Body muted>
