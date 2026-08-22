@@ -99,7 +99,29 @@ export default function ServicesScreen() {
       {control.error ? <ErrorBanner message={control.error} /> : null}
       {control.output ? <OutputBlock text={control.output} /> : null}
 
-      {remove.error ? <ErrorBanner message={remove.error} /> : null}
+      {remove.error ? (
+        <>
+          <ErrorBanner message={remove.error} />
+          {/*
+            An agent installed before this method existed answers with
+            "Unknown method", and the banner alone reads like a bug in the app.
+            Matching on the wording is crude, but the wording is the agent's
+            own and lives in this repository. The way out is one screen away.
+          */}
+          {remove.error.includes('Unknown method') ? (
+            <Card>
+              <SectionTitle>Der Agent ist älter als dieser Knopf</SectionTitle>
+              <Body muted>
+                Löschen gibt es erst in einer neueren Fassung des Agenten. Auf dem Host läuft noch
+                die alte — aktualisiere sie, dann funktioniert es.
+              </Body>
+              <Link href="/agent-update" asChild>
+                <Button label="Agent aktualisieren" variant="primary" onPress={() => {}} />
+              </Link>
+            </Card>
+          ) : null}
+        </>
+      ) : null}
       {removed ? <RemovalReport result={removed} onDismiss={() => setRemoved(null)} /> : null}
 
       {services.loading ? (

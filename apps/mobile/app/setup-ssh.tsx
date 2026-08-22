@@ -12,7 +12,7 @@
 
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { client } from '../src/api/client';
 import { saveCredentials } from '../src/api/storage';
@@ -50,8 +50,13 @@ export default function SetupSshScreen() {
 
   const availability = sshAvailability();
 
-  const [target, setTarget] = useState('');
-  const [user, setUser] = useState('');
+  // Prefilled when this screen is reached from an already-connected account:
+  // repeating a setup - to update the agent, say - otherwise means typing the
+  // host and the user again, both of which the live session already knows.
+  // The password is never among them and never will be.
+  const params = useLocalSearchParams<{ host?: string; user?: string }>();
+  const [target, setTarget] = useState(params.host ?? '');
+  const [user, setUser] = useState(params.user ?? '');
   const [mode, setMode] = useState<AuthMode>('password');
   const [password, setPassword] = useState('');
   const [privateKey, setPrivateKey] = useState('');

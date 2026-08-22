@@ -6,17 +6,20 @@
  * and restart a service. This asks the agent to do it to itself.
  *
  * The screen exists rather than a button on the overview because the update
- * streams a build that takes minutes, and because of the ending: the agent
- * restarts, which drops the connection this very output arrives through. That
- * is the expected outcome, not a failure, and saying so needs more room than a
- * button has. See `expected` below.
+ * streams a build that takes minutes, and because of two endings that need
+ * explaining: the agent restarts, dropping the connection this very output
+ * arrives through — success, not failure — and an agent too old to know this
+ * call at all, which is a circle only one SSH run can break. See the restart
+ * handling in start() and TooOldCard.
  */
 
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
+import { Link } from 'expo-router';
+import type { SystemInfo } from '@uberapp/protocol';
 
-import { client } from '../src/api/client';
-import { describeError, useConnection } from '../src/api/hooks';
+import { client, RpcCallError } from '../src/api/client';
+import { describeError, useConnection, useQuery } from '../src/api/hooks';
 import type { StreamHandle } from '../src/api/client';
 import {
   Body,
@@ -44,6 +47,10 @@ export default function AgentUpdateScreen() {
   const [error, setError] = useState<string | null>(null);
   const [restarting, setRestarting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // Set when the agent does not know this call yet - see TooOldCard.
+  const [tooOld, setTooOld] = useState(false);
+
+  const info = useQuery<SystemInfo>('system.info');
 
   const handle = useRef<StreamHandle | null>(null);
   const buffer = useRef('');
@@ -58,6 +65,7 @@ export default function AgentUpdateScreen() {
     setLines([]);
     setError(null);
     setRestarting(false);
+    setTooOld(false);
     setRunning(true);
 
     handle.current = client.stream(
@@ -84,6 +92,10 @@ export default function AgentUpdateScreen() {
         // would call every successful update a failure.
         if (sawRestart.current) {
           setRestarting(true);
+          return;
+        }
+        if (err instanceof RpcCallError && err.code === 'unknown_method') {
+          setTooOld(true);
           return;
         }
         if (err) setError(describeError(err));
@@ -113,6 +125,8 @@ export default function AgentUpdateScreen() {
           loading={running}
         />
       </Card>
+
+      {tooOld ? <TooOldCard info={info.data ?? null} /> : null}
 
       {error ? <ErrorBanner message={error} /> : null}
 
@@ -148,5 +162,39 @@ export default function AgentUpdateScreen() {
         onCancel={() => setConfirmOpen(false)}
       />
     </ScreenScroll>
+  );
+}
+
+/**
+ * The bootstrap case, which cannot be avoided and should not be a dead end.
+ *
+ * An agent old enough to lack this call cannot install the call that would
+ * have updated it. Exactly one SSH run is needed to break that circle, and
+ * from then on this screen does the job. Saying so here, with the host and
+ * user already filled in, is the difference between a next step and a wall.
+ */
+function TooOldCard({ info }: { info: SystemInfo | null }) {
+  const host = info ? `${info.hostname.split('.')[0]}.uberspace.de` : undefined;
+
+  return (
+    <Card>
+      <SectionTitle>Der Agent kennt diesen Aufruf noch nicht</SectionTitle>
+      <Body muted>
+        Auf dem Host läuft eine Fassung, die älter ist als die Selbstaktualisierung — und sie kann
+        sich die Neuerung nicht selbst aufspielen. Dafür braucht es genau einmal die Einrichtung
+        über SSH. Danach genügt dieser Bildschirm.
+      </Body>
+      <Link
+        href={{ pathname: '/setup-ssh', params: { ...(host ? { host } : {}), ...(info ? { user: info.user } : {}) } }}
+        asChild
+      >
+        <Button label="Einmalig über SSH einrichten" variant="primary" onPress={() => {}} />
+      </Link>
+      {info ? (
+        <Body muted style={{ fontSize: 12 }}>
+          {`Host und Benutzer sind vorausgefüllt (${info.user}@${host}); es fehlt nur dein SSH-Passwort.`}
+        </Body>
+      ) : null}
+    </Card>
   );
 }
