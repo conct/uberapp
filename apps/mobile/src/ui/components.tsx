@@ -4,6 +4,7 @@
  */
 
 import { type ReactNode, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Modal,
@@ -224,35 +225,68 @@ export function Field({
   monospace?: boolean;
 }) {
   const theme = useTheme();
+
+  // Offered on every masked field. A password typed on a phone keyboard is
+  // worth checking before it goes somewhere that answers with nothing more
+  // useful than "Anmeldung abgelehnt".
+  const [revealed, setRevealed] = useState(false);
+  const canReveal = Boolean(secureTextEntry);
+
   return (
     <View style={{ gap: spacing.xs }}>
       <Text style={{ color: theme.textMuted, fontSize: 13, fontWeight: '600' }}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={theme.textFaint}
-        secureTextEntry={secureTextEntry}
-        autoCapitalize={autoCapitalize}
-        autoCorrect={false}
-        keyboardType={keyboardType}
-        multiline={multiline}
-        style={{
-          minHeight: multiline ? 120 : 44,
-          color: theme.text,
-          backgroundColor: theme.surfaceAlt,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: error ? theme.danger : theme.border,
-          borderRadius: radius.sm,
-          paddingHorizontal: spacing.md,
-          paddingVertical: spacing.sm,
-          fontSize: 15,
-          textAlignVertical: multiline ? 'top' : 'center',
-          fontFamily: monospace
-            ? Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' })
-            : undefined,
-        }}
-      />
+      <View>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={theme.textFaint}
+          secureTextEntry={canReveal && !revealed}
+          autoCapitalize={autoCapitalize}
+          autoCorrect={false}
+          keyboardType={keyboardType}
+          multiline={multiline}
+          style={{
+            minHeight: multiline ? 120 : 44,
+            color: theme.text,
+            backgroundColor: theme.surfaceAlt,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: error ? theme.danger : theme.border,
+            borderRadius: radius.sm,
+            paddingHorizontal: spacing.md,
+            // Room for the button, so the text never runs underneath it.
+            paddingRight: canReveal ? 44 + spacing.xs : spacing.md,
+            paddingVertical: spacing.sm,
+            fontSize: 15,
+            textAlignVertical: multiline ? 'top' : 'center',
+            fontFamily: monospace
+              ? Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' })
+              : undefined,
+          }}
+        />
+        {canReveal ? (
+          <Pressable
+            onPress={() => setRevealed((shown) => !shown)}
+            accessibilityRole="button"
+            accessibilityLabel={revealed ? 'Passwort verbergen' : 'Passwort anzeigen'}
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 44,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons
+              name={revealed ? 'eye-off-outline' : 'eye-outline'}
+              size={20}
+              color={theme.textMuted}
+            />
+          </Pressable>
+        ) : null}
+      </View>
       {error ? (
         <Text style={{ color: theme.danger, fontSize: 12 }}>{error}</Text>
       ) : hint ? (
