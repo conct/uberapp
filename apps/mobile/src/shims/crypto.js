@@ -30,6 +30,29 @@ const lowerCased = (fn) =>
     return Array.isArray(names) ? names.map((name) => String(name).toLowerCase()) : names;
   };
 
+/**
+ * Add the spellings Node uses for the same digest.
+ *
+ * Case was only half the problem. OpenSSL 3 also *renames* the SHA-2 family:
+ * its canonical name is "SHA2-256", where Node says "sha256". So ssh2 looks
+ * for 'sha256' in the list, finds 'sha2-256', and concludes that HMAC-SHA-256
+ * is unavailable — reporting "Unsupported algorithm: hmac-sha2-256" for a
+ * digest every party involved implements.
+ *
+ * Both spellings are kept rather than replaced: OpenSSL accepts either when
+ * looking a digest up, and something else may well expect the canonical form.
+ */
+const withNodeAliases = (names) => {
+  const all = new Set(names);
+  for (const name of names) {
+    const sha2 = /^sha2-(\d+)$/.exec(name);
+    if (sha2) all.add(`sha${sha2[1]}`);
+    const dashed = /^sha-(\d+)$/.exec(name);
+    if (dashed) all.add(`sha${dashed[1]}`);
+  }
+  return [...all].sort();
+};
+
 // A plain copy rather than a Proxy: Hermes supports Proxy, but a copy is one
 // less thing that has to behave identically on an engine this library is
 // already being stretched to fit.
@@ -44,8 +67,15 @@ for (const key of Object.getOwnPropertyNames(base)) {
 }
 
 if (typeof base.getCiphers === 'function') shim.getCiphers = lowerCased(base.getCiphers);
-if (typeof base.getHashes === 'function') shim.getHashes = lowerCased(base.getHashes);
 if (typeof base.getCurves === 'function') shim.getCurves = lowerCased(base.getCurves);
+
+if (typeof base.getHashes === 'function') {
+  const lower = lowerCased(base.getHashes);
+  shim.getHashes = function getHashes(...args) {
+    const names = lower.apply(base, args);
+    return Array.isArray(names) ? withNodeAliases(names) : names;
+  };
+}
 
 shim.default = shim;
 
