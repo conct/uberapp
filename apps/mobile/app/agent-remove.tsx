@@ -131,6 +131,25 @@ export default function AgentRemoveScreen() {
         />
       </Card>
 
+      {/*
+        Reachable without failing first. The way out used to live only inside
+        the card below, which appears after the call has been refused — so
+        somebody who knew their agent was too old still had to provoke an
+        error to be shown the door. Quiet, and only while the louder version
+        is not on screen, so there is one route at a time.
+      */}
+      {!tooOld && !done ? (
+        <Card>
+          <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
+            Entfernen setzt einen Agenten voraus, der es beherrscht. Ältere Fassungen können sich
+            zuerst selbst aktualisieren — ohne SSH und ohne Passwort.
+          </Body>
+          <Link href="/agent-update" asChild>
+            <Button label="Agent aktualisieren" onPress={() => {}} />
+          </Link>
+        </Card>
+      ) : null}
+
       {tooOld ? (
         <Card>
           <SectionTitle>Der Agent kennt diesen Aufruf noch nicht</SectionTitle>

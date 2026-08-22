@@ -128,6 +128,16 @@ export default function AgentUpdateScreen() {
 
       {tooOld ? <TooOldCard info={info.data ?? null} /> : null}
 
+      {/*
+        The SSH route, without having to fail into it first. It used to live
+        only inside TooOldCard, which appears after the agent has refused the
+        call — so the one situation where it is needed most, a host whose
+        update cannot fix itself, was also the one where it stayed hidden
+        until something went wrong on purpose. Quiet, and only while the
+        louder version is not on screen.
+      */}
+      {!tooOld && !restarting ? <SshFallback info={info.data ?? null} /> : null}
+
       {error ? <ErrorBanner message={error} /> : null}
 
       {restarting ? (
@@ -195,6 +205,34 @@ function TooOldCard({ info }: { info: SystemInfo | null }) {
           {`Host und Benutzer sind vorausgefüllt (${info.user}@${host}); es fehlt nur dein SSH-Passwort.`}
         </Body>
       ) : null}
+    </Card>
+  );
+}
+
+/**
+ * The way in that never depends on the agent.
+ *
+ * A self-update can leave a host it cannot repair from — a build that fails
+ * never reaches the restart, so the agent that would carry the fix never runs
+ * it. install.sh has no such problem: it comes over SSH, from a login shell,
+ * and does not need the agent to be working at all.
+ */
+function SshFallback({ info }: { info: SystemInfo | null }) {
+  const theme = useTheme();
+  const host = info ? `${info.hostname.split('.')[0]}.uberspace.de` : undefined;
+
+  return (
+    <Card>
+      <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
+        Kommt die Aktualisierung nicht durch, hilft die Einrichtung über SSH: sie braucht den
+        Agenten nicht und baut den Host in jedem Fall neu auf.
+      </Body>
+      <Link
+        href={{ pathname: '/setup-ssh', params: { ...(host ? { host } : {}), ...(info ? { user: info.user } : {}) } }}
+        asChild
+      >
+        <Button label="Über SSH einrichten" onPress={() => {}} />
+      </Link>
     </Card>
   );
 }
