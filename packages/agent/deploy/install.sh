@@ -14,6 +14,12 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 TOKEN_FILE="$HOME/.config/uberapp/token"
 SERVICE_FILE="$HOME/etc/services.d/uberapp-agent.ini"
 
+# The handoff broker, installed alongside. It is a separate process on a
+# separate port with no token and no state, so it neither shares the agent's
+# credentials nor takes them down with it if it crashes.
+CONNECT_PORT="${UBERAPP_CONNECT_PORT:-8400}"
+CONNECT_SERVICE_FILE="$HOME/etc/services.d/uberapp-connect.ini"
+
 say() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
 # --- sanity checks ---------------------------------------------------------
@@ -88,6 +94,19 @@ fi
 
 sleep 3
 supervisorctl status uberapp-agent || true
+
+say "Installing the handoff broker"
+sed "s|PORT=\"8400\"|PORT=\"$CONNECT_PORT\"|"   "$REPO_DIR/packages/connect/deploy/uberapp-connect.ini" > "$CONNECT_SERVICE_FILE"
+
+supervisorctl reread
+supervisorctl update
+
+if supervisorctl status uberapp-connect >/dev/null 2>&1; then
+  supervisorctl restart uberapp-connect || true
+fi
+
+sleep 3
+supervisorctl status uberapp-connect || true
 
 # --- web backend -----------------------------------------------------------
 

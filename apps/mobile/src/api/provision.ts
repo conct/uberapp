@@ -13,6 +13,14 @@
 import type { SshCredentials, SshResult, SshRunner } from './ssh';
 
 export const AGENT_PORT = 8399;
+/** The handoff broker, installed beside the agent as its own process. */
+export const CONNECT_PORT = 8400;
+/**
+ * Where the broker answers, always on the default domain and always at this
+ * path. A browser has to be able to reach it before it knows anything else, so
+ * it cannot be somewhere that depends on the user's own DNS.
+ */
+export const CONNECT_PATH = 'connect';
 export const INSTALL_DIR = 'uberapp';
 export const REPO_URL = 'https://github.com/conct/uberapp.git';
 
@@ -193,6 +201,17 @@ export async function provision(options: ProvisionOptions): Promise<ProvisionRes
       return `${credentials.user}.uber.space/${INSTALL_DIR}`;
     },
     (value) => value,
+  );
+
+  // The broker is reachable at a fixed path on the default domain, whatever
+  // the agent ended up on. A browser needs it before it knows which Uberspace
+  // it is even talking to, so it cannot sit behind a domain the user may or
+  // may not have pointed here. Failure is not fatal: the agent works without
+  // it, and only the QR handoff is missing.
+  await sh(
+    'expose',
+    `uberspace web backend set /${CONNECT_PATH} --http --port ${CONNECT_PORT} --remove-prefix 2>&1 || true`,
+    '',
   );
 
   // --- 5. confirm it actually answers --------------------------------------
