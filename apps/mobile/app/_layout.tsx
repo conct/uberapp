@@ -7,7 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
 
 import { client } from '../src/api/client';
-import { loadCredentials } from '../src/api/storage';
+import { listAccounts, loadCredentials } from '../src/api/storage';
 import { Loading } from '../src/ui/components';
 import { useTheme } from '../src/ui/theme';
 
@@ -23,12 +23,19 @@ export default function RootLayout() {
     let cancelled = false;
 
     void (async () => {
-      const credentials = await loadCredentials();
+      const [accounts, credentials] = await Promise.all([listAccounts(), loadCredentials()]);
       if (cancelled) return;
 
+      // Start reconnecting to the account that was last active, so that by the
+      // time a tile is tapped the session is usually already up.
       if (credentials) client.connect(credentials.url, credentials.token);
       setRestored(true);
-      if (!credentials) router.replace('/connect');
+
+      // The app opens on one of two things: the first-time setup when this
+      // device knows no Uberspace, or the tiles to choose between the ones it
+      // does. Landing straight in the tabs would again leave no way to reach
+      // the other accounts.
+      router.replace(accounts.length === 0 ? '/connect' : '/accounts');
     })();
 
     return () => {
@@ -38,8 +45,12 @@ export default function RootLayout() {
 
   if (!restored) {
     return (
+      // No <NavigationBar> here on purpose: this branch lasts a moment, and
+      // mounting one only to swap it for the one below makes the bar hide,
+      // unhide and hide again. Each of those is a call into the activity, and
+      // if the activity is going away — a reload, a restart — the call is
+      // rejected with nothing to catch it.
       <View style={{ flex: 1, backgroundColor: theme.bg, justifyContent: 'center' }}>
-        <NavigationBar hidden />
         <Loading label="Verbindung wird wiederhergestellt…" />
       </View>
     );
@@ -64,6 +75,12 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/*
+          Both the landing screen and a destination pushed from the overview's
+          "Wechseln". Keeping the header handles both: the stack shows a back
+          arrow only when there is something to go back to.
+        */}
+        <Stack.Screen name="accounts" options={{ title: 'Uberspaces' }} />
         <Stack.Screen name="connect" options={{ title: 'Verbindung', presentation: 'modal' }} />
         <Stack.Screen name="service/[name]" options={{ title: 'Service' }} />
         <Stack.Screen name="ports" options={{ title: 'Ports' }} />

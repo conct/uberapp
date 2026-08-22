@@ -4,15 +4,17 @@
 
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { decodePairing } from '@uberapp/protocol';
 
 import { client, httpUrl, normalizeUrl } from '../src/api/client';
 import { useConnection } from '../src/api/hooks';
 import {
-  clearCredentials,
+  getActiveId,
+  getToken,
   loadCredentials,
+  removeAccount,
   saveCredentials,
   secureStorageAvailable,
 } from '../src/api/storage';
@@ -44,6 +46,10 @@ export default function ConnectScreen() {
   const theme = useTheme();
   const router = useRouter();
   const connection = useConnection();
+
+  /** Set by the account list, which opens this screen to add a second host. */
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const addingNew = mode === 'new';
 
   const [url, setUrl] = useState('');
   const [token, setToken] = useState('');
@@ -94,7 +100,11 @@ export default function ConnectScreen() {
 
   useEffect(() => {
     void loadCredentials().then((credentials) => {
-      if (credentials) {
+      // Pre-fill only when this screen is editing the connection that already
+      // exists. Reached as "add another Uberspace", the same fields would hold
+      // the *other* account's address, and saving would overwrite it rather
+      // than add a second one — the form would be lying about what it does.
+      if (credentials && !addingNew) {
         setUrl(credentials.url);
         setToken(credentials.token);
       }
@@ -150,15 +160,36 @@ export default function ConnectScreen() {
     const normalized = normalizeUrl(url);
     await saveCredentials({ url: normalized, token: token.trim() });
     client.connect(normalized, token.trim());
+    // Leaving the screen is left to the effect above, which waits for the
+    // agent to actually accept us. Navigating here instead would hide a bad
+    // token behind a tab screen that just says "not connected".
   };
 
+  /**
+   * Forget the account this screen is currently pointed at — not every one.
+   *
+   * There can be several now, and "Zugangsdaten löschen" reads as being about
+   * the connection in front of you. Wiping all of them from here would be a
+   * surprise with no undo, since the tokens cannot be recovered from the
+   * device. The account list is where several are managed.
+   */
   const forget = async () => {
-    client.disconnect();
-    await clearCredentials();
+    const active = await getActiveId();
+    const fallback = active ? await removeAccount(active) : null;
+
     setUrl('');
     setToken('');
     setTouched(false);
     setProbe(null);
+
+    if (!fallback) {
+      client.disconnect();
+      return;
+    }
+
+    const fallbackToken = await getToken(fallback.id);
+    if (fallbackToken) client.connect(fallback.url, fallbackToken);
+    else client.disconnect();
   };
 
   return (
