@@ -17,7 +17,12 @@ import type {
   WebLogKind,
   WebLogStatus,
 } from '@uberapp/protocol';
-import { ERRORPAGE_CODES, isValidHeaderName, isValidHeaderValue } from '@uberapp/protocol';
+import {
+  ERRORPAGE_CODES,
+  failureReason,
+  isValidHeaderName,
+  isValidHeaderValue,
+} from '@uberapp/protocol';
 import { run, runOrThrow, runStream } from '../exec.js';
 import { RpcError, type CallContext, type Handler } from '../rpc.js';
 import {
@@ -75,7 +80,7 @@ const domainsAdd: Handler = async (params) => {
   const result = await run('uberspace', ['web', 'domain', 'add', domain], { timeoutMs: 60_000 });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not add domain',
+      failureReason(result.stderr || result.stdout, 'Could not add domain'),
       result.stderr || result.stdout,
     );
   }
@@ -91,7 +96,7 @@ const domainsDel: Handler = async (params) => {
   const result = await run('uberspace', ['web', 'domain', 'del', domain], { timeoutMs: 60_000 });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not delete domain',
+      failureReason(result.stderr || result.stdout, 'Could not delete domain'),
       result.stderr || result.stdout,
     );
   }
@@ -172,7 +177,7 @@ const backendsSet: Handler = async (params) => {
   const result = await run('uberspace', args, { timeoutMs: 60_000 });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not set backend',
+      failureReason(result.stderr || result.stdout, 'Could not set backend'),
       result.stderr || result.stdout,
     );
   }
@@ -188,7 +193,7 @@ const backendsDel: Handler = async (params) => {
   const result = await run('uberspace', ['web', 'backend', 'del', target], { timeoutMs: 60_000 });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not delete backend',
+      failureReason(result.stderr || result.stdout, 'Could not delete backend'),
       result.stderr || result.stdout,
     );
   }
@@ -239,7 +244,7 @@ const logSetEnabled: Handler = async (params) => {
   });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not change log setting',
+      failureReason(result.stderr || result.stdout, 'Could not change log setting'),
       result.stderr || result.stdout,
     );
   }
@@ -268,10 +273,6 @@ const logTail: Handler = async (params, ctx: CallContext) => {
     ctx.onCancel(() => handle.cancel());
   });
 };
-
-function firstLine(text: string): string {
-  return text.trim().split('\n')[0]?.trim() ?? '';
-}
 
 // --- headers ---------------------------------------------------------------
 
@@ -362,7 +363,7 @@ const headersSet: Handler = async (params) => {
   });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not set the header',
+      failureReason(result.stderr || result.stdout, 'Could not set the header'),
       result.stderr || result.stdout,
     );
   }
@@ -379,7 +380,7 @@ const headersSuppress: Handler = async (params) => {
   });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not suppress the header',
+      failureReason(result.stderr || result.stdout, 'Could not suppress the header'),
       result.stderr || result.stdout,
     );
   }
@@ -396,7 +397,7 @@ const headersDel: Handler = async (params) => {
   });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not delete the header',
+      failureReason(result.stderr || result.stdout, 'Could not delete the header'),
       result.stderr || result.stdout,
     );
   }
@@ -433,7 +434,7 @@ const errorpageSet: Handler = async (params) => {
   );
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not change the error page',
+      failureReason(result.stderr || result.stdout, 'Could not change the error page'),
       result.stderr || result.stdout,
     );
   }
@@ -464,7 +465,7 @@ const fixPermissions: Handler = async (params, ctx) => {
   const chmod = await run('chmod', ['-R', 'u=rwX,go=rX', requested], { timeoutMs: 120_000 });
   if (!chmod.ok) {
     throw RpcError.commandFailed(
-      firstLine(chmod.stderr) || 'chmod failed',
+      failureReason(chmod.stderr, 'chmod failed'),
       chmod.stderr || chmod.stdout,
     );
   }
@@ -499,7 +500,7 @@ const toolsRestart: Handler = async (params) => {
   const result = await run('uberspace', ['tools', 'restart', tool], { timeoutMs: 60_000 });
   const output = (result.stdout + result.stderr).trim();
   if (!result.ok) {
-    throw RpcError.commandFailed(firstLine(output) || `Could not restart ${tool}`, output);
+    throw RpcError.commandFailed(failureReason(output, `Could not restart ${tool}`), output);
   }
   return { tool, output };
 };

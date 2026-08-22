@@ -10,6 +10,8 @@
  * success; how bytes reach the host is somebody else's problem.
  */
 
+import { failureReason } from '@uberapp/protocol';
+
 import type { SshCredentials, SshResult, SshRunner } from './ssh';
 
 export const AGENT_PORT = 8399;
@@ -60,9 +62,30 @@ export class ProvisionError extends Error {
   }
 }
 
-/** First non-empty line, which is where these tools put the useful part. */
-function firstLine(text: string): string {
-  return text.trim().split('\n').find((line) => line.trim().length > 0)?.trim() ?? '';
+/**
+ * Causes worth naming in plain words, checked before the raw output is used.
+ *
+ * An exhausted quota is the one that actually happens, and it earns a
+ * translation: the tool's own reason line names a path inside /opt/uberspace
+ * rather than the thing the person has to do something about.
+ */
+const KNOWN_CAUSES: ReadonlyArray<readonly [RegExp, string]> = [
+  [
+    /Disk quota exceeded|Errno 122/i,
+    'Das Speicherkontingent des Uberspace ist erschöpft. Solange nichts frei wird, lässt sich dort nichts installieren — nicht einmal die Node-Version umstellen. Räum auf und starte die Einrichtung danach neu.',
+  ],
+  [
+    /No space left on device|Errno 28/i,
+    'Auf dem Host ist kein Platz mehr frei. Räum auf und starte die Einrichtung danach neu.',
+  ],
+];
+
+/** The named cause if there is one, otherwise the line that says most. */
+function reason(text: string, fallback: string): string {
+  for (const [pattern, message] of KNOWN_CAUSES) {
+    if (pattern.test(text)) return message;
+  }
+  return failureReason(text, fallback);
 }
 
 export interface ProvisionOptions {
@@ -96,7 +119,7 @@ export async function provision(options: ProvisionOptions): Promise<ProvisionRes
     if (result.code !== 0) {
       throw new ProvisionError(
         id,
-        firstLine(result.stderr || result.stdout) || whatFailed,
+        reason(result.stderr || result.stdout, whatFailed),
         (result.stderr || result.stdout).slice(0, 2000),
       );
     }
@@ -112,6 +135,15 @@ export async function provision(options: ProvisionOptions): Promise<ProvisionRes
         'command -v uberspace >/dev/null && node -v || echo NO_UBERSPACE',
         'Der Host hat nicht geantwortet.',
       );
+      // A full quota does not fail this probe: `node -v` only fails to
+      // *record* that it ran, complains on stderr and still exits 0. But
+      // everything after this step writes — a clone, a build, a service — so
+      // saying it here beats failing four steps later inside npm with a
+      // message about some file in the cache.
+      if (/Disk quota exceeded|No space left on device/i.test(probe.stderr)) {
+        throw new ProvisionError('check', reason(probe.stderr, ''), probe.stderr.slice(0, 2000));
+      }
+
       const output = probe.stdout.trim();
       if (output.includes('NO_UBERSPACE')) {
         throw new ProvisionError(
@@ -155,7 +187,7 @@ export async function provision(options: ProvisionOptions): Promise<ProvisionRes
     if (result.code !== 0) {
       throw new ProvisionError(
         'install',
-        firstLine(result.stderr) || 'Die Installation ist fehlgeschlagen.',
+        reason(result.stderr, 'Die Installation ist fehlgeschlagen.'),
         result.stderr.slice(0, 2000),
       );
     }
@@ -220,18 +252,42 @@ export async function provision(options: ProvisionOptions): Promise<ProvisionRes
     async () => {
       // Asked from the host itself, so a DNS or certificate delay on the
       // client side cannot make a working agent look broken.
+      //
+      // Asked repeatedly, because a single shot here fails for a service that
+      // is merely still starting: the .ini sets startsecs=30, and the
+      // installer waits three. Ten tries over half a minute is the difference
+      // between "not up yet" and "not coming up".
       const health = await sh(
         'verify',
-        `curl -sS -m 15 https://${target}/healthz 2>&1 || echo REQUEST_FAILED`,
+        'for i in 1 2 3 4 5 6 7 8 9 10; do ' +
+          `out="$(curl -sS -m 10 https://${target}/healthz 2>&1)"; ` +
+          'case "$out" in *\'"ok":true\'*) echo "$out"; exit 0;; esac; ' +
+          'sleep 3; done; echo "$out"',
         '',
       );
       if (!health.stdout.includes('"ok":true')) {
+        // A 502 means the route is in place and nothing is listening behind
+        // it — a service that did not start, not a routing problem. Saying
+        // only "the endpoint does not answer" sends people to look at DNS,
+        // which is the one thing that is definitely fine.
+        const service = await sh(
+          'verify',
+          'supervisorctl status uberapp-agent 2>&1 || true',
+          '',
+        );
+        const stalled = /BACKOFF|FATAL|EXITED|spawn error/i.test(service.stdout);
+
         throw new ProvisionError(
           'verify',
-          domain
-            ? 'Der Endpunkt antwortet noch nicht. Eine neue Domain braucht erst ihren DNS-Eintrag, danach ein paar Minuten für das Zertifikat.'
-            : 'Der Endpunkt antwortet noch nicht.',
-          health.stdout.slice(0, 500),
+          stalled
+            ? 'Der Agent-Dienst startet auf dem Host nicht. Die Route steht, aber auf dem Port lauscht nichts.'
+            : domain
+              ? 'Der Endpunkt antwortet noch nicht. Eine neue Domain braucht erst ihren DNS-Eintrag, danach ein paar Minuten für das Zertifikat.'
+              : 'Der Endpunkt antwortet noch nicht.',
+          [service.stdout.trim(), health.stdout.trim()]
+            .filter((part) => part.length > 0)
+            .join('\n\n')
+            .slice(0, 2000),
         );
       }
 

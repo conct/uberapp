@@ -7,7 +7,7 @@
  * agent allocates a pty and answers both prompts. See runInteractive().
  */
 
-import { isValidEmail, MIN_MAILBOX_PASSWORD_LENGTH } from '@uberapp/protocol';
+import { failureReason, isValidEmail, MIN_MAILBOX_PASSWORD_LENGTH } from '@uberapp/protocol';
 import {
   hasPtySupport,
   redact,
@@ -42,7 +42,7 @@ const domainsAdd: Handler = async (params) => {
   const result = await run('uberspace', ['mail', 'domain', 'add', domain], { timeoutMs: 60_000 });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not add mail domain',
+      failureReason(result.stderr || result.stdout, 'Could not add mail domain'),
       result.stderr || result.stdout,
     );
   }
@@ -55,7 +55,7 @@ const domainsDel: Handler = async (params) => {
   const result = await run('uberspace', ['mail', 'domain', 'del', domain], { timeoutMs: 60_000 });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not delete mail domain',
+      failureReason(result.stderr || result.stdout, 'Could not delete mail domain'),
       result.stderr || result.stdout,
     );
   }
@@ -133,7 +133,7 @@ const usersAdd: Handler = async (params) => {
   const output = withoutPrompts(redact(result.stdout + result.stderr, password));
 
   if (!result.ok || /error|failed|too weak|score/i.test(output)) {
-    throw RpcError.commandFailed(firstLine(output) || 'Could not create mailbox', output);
+    throw RpcError.commandFailed(failureReason(output, 'Could not create mailbox'), output);
   }
   return { name, output };
 };
@@ -153,7 +153,7 @@ const usersPassword: Handler = async (params) => {
   const output = withoutPrompts(redact(result.stdout + result.stderr, password));
 
   if (!result.ok || /error|failed|too weak|score/i.test(output)) {
-    throw RpcError.commandFailed(firstLine(output) || 'Could not change password', output);
+    throw RpcError.commandFailed(failureReason(output, 'Could not change password'), output);
   }
   return { name, output };
 };
@@ -164,7 +164,7 @@ const usersDel: Handler = async (params) => {
   const result = await run('uberspace', ['mail', 'user', 'del', name], { timeoutMs: 60_000 });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not delete mailbox',
+      failureReason(result.stderr || result.stdout, 'Could not delete mailbox'),
       result.stderr || result.stdout,
     );
   }
@@ -212,7 +212,7 @@ const forwardSet: Handler = async (params) => {
   });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not set the forward',
+      failureReason(result.stderr || result.stdout, 'Could not set the forward'),
       result.stderr || result.stdout,
     );
   }
@@ -227,7 +227,7 @@ const forwardDel: Handler = async (params) => {
   });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not delete the forward',
+      failureReason(result.stderr || result.stdout, 'Could not delete the forward'),
       result.stderr || result.stdout,
     );
   }
@@ -258,7 +258,7 @@ const catchallSet: Handler = async (params) => {
   const result = await run('uberspace', ['mail', 'catchall', 'set', mailbox], { timeoutMs: 60_000 });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not set the catch-all',
+      failureReason(result.stderr || result.stdout, 'Could not set the catch-all'),
       result.stderr || result.stdout,
     );
   }
@@ -269,7 +269,7 @@ const catchallDel: Handler = async () => {
   const result = await run('uberspace', ['mail', 'catchall', 'del'], { timeoutMs: 60_000 });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not remove the catch-all',
+      failureReason(result.stderr || result.stdout, 'Could not remove the catch-all'),
       result.stderr || result.stdout,
     );
   }
@@ -296,16 +296,12 @@ const spamfolderSet: Handler = async (params) => {
   });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not change the spam folder',
+      failureReason(result.stderr || result.stdout, 'Could not change the spam folder'),
       result.stderr || result.stdout,
     );
   }
   return { enabled, output: (result.stdout + result.stderr).trim() };
 };
-
-function firstLine(text: string): string {
-  return text.trim().split('\n')[0]?.trim() ?? '';
-}
 
 export const mailHandlers: Record<string, Handler> = {
   'mail.domains.list': domainsList,

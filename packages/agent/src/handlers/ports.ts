@@ -9,6 +9,7 @@
  */
 
 import {
+  failureReason,
   FIREWALL_PORT_RANGE,
   MAX_FIREWALL_PORTS,
   type ListenerInfo,
@@ -123,7 +124,7 @@ const list: Handler = async () => {
   const result = await run('uberspace', ['port', 'list'], { timeoutMs: 30_000 });
   if (!result.ok) {
     throw RpcError.commandFailed(
-      firstLine(result.stderr || result.stdout) || 'Could not list ports',
+      failureReason(result.stderr || result.stdout, 'Could not list ports'),
       result.stderr || result.stdout,
     );
   }
@@ -148,7 +149,7 @@ const add: Handler = async () => {
   const output = (result.stdout + result.stderr).trim();
 
   if (!result.ok) {
-    throw RpcError.commandFailed(firstLine(output) || 'Could not open a port', output);
+    throw RpcError.commandFailed(failureReason(output, 'Could not open a port'), output);
   }
 
   return {
@@ -167,14 +168,10 @@ const del: Handler = async (params) => {
   const output = (result.stdout + result.stderr).trim();
 
   if (!result.ok) {
-    throw RpcError.commandFailed(firstLine(output) || 'Could not close the port', output);
+    throw RpcError.commandFailed(failureReason(output, 'Could not close the port'), output);
   }
   return { port, output };
 };
-
-function firstLine(text: string): string {
-  return text.trim().split('\n')[0]?.trim() ?? '';
-}
 
 export const portHandlers: Record<string, Handler> = {
   'system.listeners': listeners,

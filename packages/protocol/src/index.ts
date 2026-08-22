@@ -981,3 +981,6 @@ if address :is "from" "absender@example.com" {
 
 // The browser/phone handoff, brokered by a server that never sees the payload.
 export * from './handoff.js';
+
+// Reading the reason out of a failed command's output.
+export * from './failure.js';
