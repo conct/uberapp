@@ -114,6 +114,9 @@ export const METHODS = [
   'system.memory',
   'system.shell.list',
   'system.shell.set',
+  // The agent updating its own checkout, so a change to it does not cost an
+  // SSH setup run. Streams the build; the connection drops on the restart.
+  'system.selfUpdate',
 
   // --- firewall ports ------------------------------------------------------
   'ports.list',
@@ -208,6 +211,8 @@ export type MethodName = (typeof METHODS)[number];
 /** Methods that stream chunk messages and finish with done. */
 export const STREAMING_METHODS: ReadonlySet<MethodName> = new Set<MethodName>([
   'services.logs',
+  // npm install and a full build, on a shared host: minutes, not seconds.
+  'system.selfUpdate',
   'web.log.tail',
   // rsync's own output is the progress report, so these stream it verbatim
   // instead of making the user wait on a summary.
@@ -226,6 +231,7 @@ export const MUTATING_METHODS: ReadonlySet<MethodName> = new Set<MethodName>([
   'system.setToolVersion',
   'system.cron.set',
   'system.shell.set',
+  'system.selfUpdate',
   'ports.add',
   'ports.del',
   'services.control',

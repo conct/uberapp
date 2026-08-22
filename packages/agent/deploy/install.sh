@@ -62,6 +62,13 @@ echo "Node $(node -v) OK"
 # path in at install time, while a login shell is what we are running under.
 NODE_BIN="$(command -v node)"
 
+# The same reasoning covers everything the agent itself starts - npm and git
+# during a self-update. supervisord hands its own environment to the process,
+# so the PATH this script has, which is a login shell's, is recorded in the
+# service file. supervisord expands %(...)s in its configs, so a literal
+# percent has to be doubled on the way in.
+AGENT_PATH="$(printf '%s' "$PATH" | sed 's/%/%%/g')"
+
 # --- build -----------------------------------------------------------------
 
 say "Installing dependencies"
@@ -114,6 +121,7 @@ say "Installing the supervisord service"
 mkdir -p "$HOME/etc/services.d" "$HOME/logs"
 sed -e "s|UBERAPP_PORT=\"8399\"|UBERAPP_PORT=\"$PORT\"|" \
     -e "s|^command=node |command=$NODE_BIN |" \
+    -e "s|PATH=\"AGENT_PATH\"|PATH=\"$AGENT_PATH\"|" \
   "$REPO_DIR/packages/agent/deploy/uberapp-agent.ini" > "$SERVICE_FILE"
 
 supervisorctl reread

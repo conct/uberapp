@@ -195,6 +195,9 @@ export default function OverviewScreen() {
             <Body muted style={{ fontSize: 12 }}>
               Die Last gilt für den gesamten geteilten Host, nicht nur für deinen Account.
             </Body>
+            <Link href="/agent-update" asChild>
+              <Button label="Agent aktualisieren" onPress={() => {}} />
+            </Link>
           </>
         ) : null}
       </Card>

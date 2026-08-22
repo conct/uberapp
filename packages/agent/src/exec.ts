@@ -177,14 +177,14 @@ export function runStream(
   file: string,
   args: string[],
   cb: StreamCallbacks,
-  opts: { cwd?: string } = {},
+  opts: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
 ): StreamHandle {
   // stdin is intentionally closed: a log tail has nothing to read.
   let child: ChildProcessByStdio<null, Readable, Readable>;
   try {
     child = spawn(file, args, {
       cwd: opts.cwd,
-      env: process.env,
+      env: opts.env ?? process.env,
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
     });

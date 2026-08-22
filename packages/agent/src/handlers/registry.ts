@@ -18,6 +18,7 @@ import { diagnosticsHandlers } from './diagnostics.js';
 import { fileHandlers } from './files.js';
 import { mailHandlers } from './mail.js';
 import { portHandlers } from './ports.js';
+import { selfUpdateHandlers } from './selfUpdate.js';
 import { serviceHandlers } from './services.js';
 import { sieveHandlers } from './sieve.js';
 import { systemHandlers } from './system.js';
@@ -26,6 +27,7 @@ import { webHandlers } from './web.js';
 export const handlers: Record<string, Handler> = {
   ...authHandlers,
   ...systemHandlers,
+  ...selfUpdateHandlers,
   ...serviceHandlers,
   ...webHandlers,
   ...mailHandlers,
