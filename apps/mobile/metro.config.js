@@ -39,6 +39,9 @@ config.resolver.disableHierarchicalLookup = true;
 const EMPTY = path.resolve(projectRoot, 'src/shims/empty.js');
 // ssh2 subclasses http.Agent at module scope, so that one needs a real class.
 const HTTP = path.resolve(projectRoot, 'src/shims/http.js');
+// ssh2 calls createInflate()._handle.constructor while loading, so this one
+// needs shape too, not just presence.
+const ZLIB = path.resolve(projectRoot, 'src/shims/zlib.js');
 
 const NODE_SHIMS = {
   crypto: 'react-native-quick-crypto',
@@ -56,7 +59,7 @@ const NODE_SHIMS = {
   // key files on disk. Metro resolves every require it can see, including ones
   // behind a try/catch, so each needs something to resolve to. An empty object
   // is that something; the guarded paths are never taken here.
-  zlib: EMPTY,
+  zlib: ZLIB,
   http: HTTP,
   https: HTTP,
   dns: EMPTY,
