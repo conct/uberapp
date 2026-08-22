@@ -999,3 +999,6 @@ export * from './handoff.js';
 
 // Reading the reason out of a failed command's output.
 export * from './failure.js';
+
+// The ed25519 key that replaces the password on later setup runs.
+export * from './sshkey.js';
