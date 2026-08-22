@@ -37,6 +37,8 @@ config.resolver.disableHierarchicalLookup = true;
 // point at, and must fall through to the stub instead. See
 // https://docs.expo.dev/guides/customizing-metro/
 const EMPTY = path.resolve(projectRoot, 'src/shims/empty.js');
+// ssh2 subclasses http.Agent at module scope, so that one needs a real class.
+const HTTP = path.resolve(projectRoot, 'src/shims/http.js');
 
 const NODE_SHIMS = {
   crypto: 'react-native-quick-crypto',
@@ -55,8 +57,8 @@ const NODE_SHIMS = {
   // behind a try/catch, so each needs something to resolve to. An empty object
   // is that something; the guarded paths are never taken here.
   zlib: EMPTY,
-  http: EMPTY,
-  https: EMPTY,
+  http: HTTP,
+  https: HTTP,
   dns: EMPTY,
   fs: EMPTY,
   os: EMPTY,

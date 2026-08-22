@@ -16,6 +16,10 @@
  * algorithm" rather than a mysterious hang.
  */
 
+// Must come first: ssh2 reads Buffer and process off the global object while
+// it is being evaluated, so they have to exist before that import runs.
+import './node-globals';
+
 import { Client, type ConnectConfig } from 'ssh2';
 import { Buffer } from 'buffer';
 
