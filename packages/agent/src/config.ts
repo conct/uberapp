@@ -8,10 +8,15 @@ import { join } from 'node:path';
  *
  * It stayed at 0.1.0 through every deploy, which made "did the update land?"
  * unanswerable without SSH — the agent would happily report the same version
- * before and after. Raise it whenever the agent gains or changes a method.
- * Keep it in step with packages/agent/package.json.
+ * before and after.
+ *
+ * Raise it whenever the agent gains or changes a method, and keep it in step
+ * with packages/agent/package.json. system.uninstall was added without doing
+ * so, and for twenty minutes 0.2.0 meant two different surfaces — one that
+ * could take Uberapp off a host and one that could not. A version that does
+ * not move is worth as little as no version at all.
  */
-export const AGENT_VERSION = '0.2.0';
+export const AGENT_VERSION = '0.3.0';
 
 export interface AgentConfig {
   /** Shared secret the client must present. */

@@ -72,9 +72,13 @@ export default function ServicesScreen() {
     onSuccess: () => services.refresh(),
   });
   const reload = useMutation('services.reload', { onSuccess: () => services.refresh() });
-  const remove = useMutation<{ name: string }, DeleteResult>('services.delete', {
+  // useMutation hands the result back as unknown - it cannot know what a
+  // method returns. The shape is this app's own, declared above and produced
+  // by services.delete in the agent, so it is named at the one place that
+  // knows it rather than smuggled through the hook.
+  const remove = useMutation<{ name: string }>('services.delete', {
     onSuccess: (result) => {
-      setRemoved(result);
+      setRemoved(result as DeleteResult);
       services.refresh();
     },
   });

@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 
 import { client, RpcCallError } from '../src/api/client';
 import type { StreamHandle } from '../src/api/client';
@@ -135,9 +135,17 @@ export default function AgentRemoveScreen() {
         <Card>
           <SectionTitle>Der Agent kennt diesen Aufruf noch nicht</SectionTitle>
           <Body muted>
-            Auf dem Host läuft eine ältere Fassung. Aktualisiere sie zuerst — oder entferne die
-            Dienste von Hand über SSH.
+            Auf dem Host läuft eine Fassung, die älter ist als das Entfernen. Sie kann sich aber
+            selbst aktualisieren — danach geht es hier weiter.
           </Body>
+          {/*
+            Without this the card was a dead end with advice in it. The way out
+            is one screen away and needs no password, so it belongs here as a
+            button rather than as a sentence telling somebody to go and find it.
+          */}
+          <Link href="/agent-update" asChild>
+            <Button label="Agent aktualisieren" variant="primary" onPress={() => {}} />
+          </Link>
         </Card>
       ) : null}
 

@@ -15,7 +15,7 @@
     "build": "npm run build:protocol && npm run build:agent && npm run build:connect",
     "dev:agent": "npm run dev -w @uberapp/agent",
     "app": "npm run start -w @uberapp/mobile",
-    "typecheck": "tsc -b packages/protocol packages/agent packages/connect",
+    "typecheck": "tsc -b packages/protocol packages/agent packages/connect && npm run typecheck -w @uberapp/mobile",
     "test": "npm run test -w @uberapp/agent && npm run test -w @uberapp/connect",
     "setup": "node tools/setup.mjs",
     "dev:connect": "npm run dev -w @uberapp/connect"

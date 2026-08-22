@@ -57,7 +57,22 @@ const CHILD_PATH = [
   .filter((part) => part.length > 0)
   .join(':');
 
-const CHILD_ENV: NodeJS.ProcessEnv = { ...process.env, PATH: CHILD_PATH };
+/**
+ * The environment for the update's children, with one variable taken out.
+ *
+ * The service file sets NODE_ENV=production and this process inherits it. npm
+ * reads that and skips devDependencies - which is where typescript, tsx and
+ * @types/ws live - so the build then fails on a missing declaration file for
+ * a package sitting right there in node_modules. install.sh never met this:
+ * it runs from a login shell, where NODE_ENV is not set at all.
+ *
+ * Only the children are affected. What the agent itself runs as is untouched.
+ */
+const CHILD_ENV: NodeJS.ProcessEnv = (() => {
+  const env: NodeJS.ProcessEnv = { ...process.env, PATH: CHILD_PATH };
+  delete env.NODE_ENV;
+  return env;
+})();
 
 const NPM = join(dirname(process.execPath), 'npm');
 
