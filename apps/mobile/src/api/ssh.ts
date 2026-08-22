@@ -74,7 +74,14 @@ function loadNativeRunner(): SshRunner | null {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const module = require('./sshTransport') as { createRunner?: () => SshRunner };
     return module.createRunner?.() ?? null;
-  } catch {
+  } catch (err) {
+    // Returning null here is correct — a build without the native modules
+    // genuinely has no SSH, and the caller says so. But swallowing the reason
+    // is not: this catch also fires when the transport is present and merely
+    // broken, and then the app reports "diese App-Variante enthält kein SSH"
+    // for what is actually a missing shim. Every such failure so far has been
+    // one line away from obvious once seen, so it gets logged.
+    console.error('SSH transport failed to load:', err instanceof Error ? err.stack : String(err));
     return null;
   }
 }

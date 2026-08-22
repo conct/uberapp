@@ -8,12 +8,10 @@
  * importing it throws, and the caller reports that as "not available here"
  * rather than crashing.
  *
- * The algorithm list below is not decoration. Left to itself ssh2 prefers
- * curve25519 key exchange and ed25519 host keys, and the crypto shim does not
- * implement those. Restricting the offer to classic Diffie-Hellman and RSA
- * keeps the handshake inside what is actually available — Uberspace hosts
- * offer both. If a future host does not, the failure is a clear "no matching
- * algorithm" rather than a mysterious hang.
+ * The algorithm list below is not decoration, and it is not a free choice
+ * either: it has to sit in the intersection of what quick-crypto can execute
+ * and what the host is willing to speak. See the comment on ALGORITHMS for
+ * how that intersection was measured, and why each entry is in it.
  */
 
 // Must come first: ssh2 reads Buffer and process off the global object while
@@ -25,9 +23,47 @@ import { Buffer } from 'buffer';
 
 import type { SshCredentials, SshResult, SshRunner } from './ssh';
 
-/** Everything here has a working implementation in the crypto shim. */
+/**
+ * The overlap between what the host offers and what quick-crypto can do.
+ *
+ * Left to itself ssh2 prefers curve25519 key exchange and ed25519 host keys.
+ * Neither works here, so the offer is narrowed — but it has to be narrowed to
+ * something the other side actually has, and an Uberspace host is hardened:
+ *
+ *   kex:     curve25519-sha256, curve25519-sha256@libssh.org,
+ *            ecdh-sha2-nistp256/384/521,
+ *            diffie-hellman-group-exchange-sha256
+ *   cipher:  chacha20-poly1305, aes256-gcm, aes128-gcm,
+ *            aes256-ctr, aes192-ctr, aes128-ctr
+ *   hostkey: ssh-ed25519, ssh-rsa
+ *
+ * Note what is *not* there: no diffie-hellman-group14-sha256 and no
+ * group16-sha512. Offering only those two — as this list used to — leaves zero
+ * overlap, and the handshake ends with "no matching key exchange algorithm"
+ * before a single packet of ours is read.
+ *
+ * Why each of the three survivors is or is not usable:
+ *
+ *   curve25519-sha256   ssh2 gates it on crypto.diffieHellman existing
+ *                       (constants.js), and quick-crypto has no such export.
+ *                       Requesting it would put a name in the offer that the
+ *                       library then cannot execute.
+ *   ecdh-sha2-nistp*    createECDH(curveName), passed straight through to
+ *                       OpenSSL. Available, and first choice.
+ *   dh-group-exchange   createDiffieHellman(prime, generator). Available, kept
+ *                       as a fallback for a host without the ECDH curves.
+ *
+ * Ciphers and MACs already overlapped; they are listed explicitly so a future
+ * host that drops one of them fails with a clear name rather than silently
+ * negotiating something the crypto shim cannot spell.
+ */
 const ALGORITHMS: ConnectConfig['algorithms'] = {
-  kex: ['diffie-hellman-group14-sha256', 'diffie-hellman-group16-sha512'],
+  kex: [
+    'ecdh-sha2-nistp256',
+    'ecdh-sha2-nistp384',
+    'ecdh-sha2-nistp521',
+    'diffie-hellman-group-exchange-sha256',
+  ],
   serverHostKey: ['rsa-sha2-512', 'rsa-sha2-256', 'ssh-rsa'],
   cipher: ['aes256-ctr', 'aes192-ctr', 'aes128-ctr'],
   hmac: ['hmac-sha2-256', 'hmac-sha2-512'],
@@ -73,7 +109,6 @@ function toConnectConfig(credentials: SshCredentials): ConnectConfig {
  * the three that actually happen.
  */
 function describe(error: Error): string {
-  console.error('[ssh-roh]', error?.stack || String(error));
   const message = error.message || String(error);
   if (/All configured authentication methods failed/i.test(message)) {
     return 'Anmeldung abgelehnt. Stimmen Benutzername und Passwort? Bei einem Schlüssel: ist er auf dem Host hinterlegt?';

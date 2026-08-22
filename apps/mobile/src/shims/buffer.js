@@ -38,6 +38,44 @@ const buffer = require('buffer/');
 /** The encodings ssh2 reaches for, under the names Node's binding uses. */
 const ENCODINGS = ['utf8', 'latin1', 'ascii', 'hex', 'base64', 'ucs2'];
 
+/**
+ * Give Buffer a Symbol.species, which Hermes does not.
+ *
+ * ssh2 takes its fast Buffer constructor from there, at module scope, in three
+ * separate files:
+ *
+ *   const FastBuffer = Buffer[Symbol.species];   // protocol/crypto.js:15
+ *                                                // protocol/utils.js:7
+ *                                                // protocol/SFTP.js:12
+ *
+ * In Node that resolves to Buffer itself: Buffer extends Uint8Array, and
+ * %TypedArray%[Symbol.species] is a getter that returns the constructor it was
+ * read from. Hermes does not implement Symbol.species on the built-ins, so the
+ * whole expression is undefined and FastBuffer is undefined with it.
+ *
+ * Nothing complains at load. The failure waits for the first packet that has
+ * to be unwrapped — every decrypt path builds its payload with
+ * `new FastBuffer(...)` — so the handshake gets all the way through the
+ * banner and the key exchange before it dies:
+ *
+ *   TypeError: undefined cannot be used as a constructor.
+ *       at decrypt
+ *       at parsePacket
+ *
+ * Returning the constructor itself is exactly what Node's getter does, and
+ * `new Buffer(arrayBuffer, byteOffset, length)` makes a view without copying
+ * here too — which is the whole reason ssh2 reaches for it.
+ */
+function addSpecies(Buffer) {
+  if (!Buffer || Buffer[Symbol.species] !== undefined) return;
+  Object.defineProperty(Buffer, Symbol.species, {
+    get() {
+      return Buffer;
+    },
+    configurable: true,
+  });
+}
+
 function addInternalMethods(Buffer) {
   if (!Buffer || !Buffer.prototype) return;
 
@@ -64,6 +102,7 @@ function addInternalMethods(Buffer) {
 }
 
 addInternalMethods(buffer.Buffer);
+addSpecies(buffer.Buffer);
 
 // react-native-quick-crypto carries its own Buffer — @craftzdog's fork, which
 // has the same gap — and its return values go straight into ssh2. A key or a
@@ -72,7 +111,9 @@ addInternalMethods(buffer.Buffer);
 // just moves to whichever buffer happened to cross the boundary.
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  addInternalMethods(require('@craftzdog/react-native-buffer').Buffer);
+  const { Buffer: QuickCryptoBuffer } = require('@craftzdog/react-native-buffer');
+  addInternalMethods(QuickCryptoBuffer);
+  addSpecies(QuickCryptoBuffer);
 } catch {
   // Only present because quick-crypto depends on it. No crypto, nothing to fix.
 }

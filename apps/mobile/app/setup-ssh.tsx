@@ -112,7 +112,6 @@ export default function SetupSshScreen() {
       client.connect(result.url, result.token);
       router.replace('/');
     } catch (err) {
-      console.error('[provision]', err instanceof Error ? err.stack : String(err));
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setRunning(false);
