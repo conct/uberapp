@@ -11,7 +11,7 @@
  */
 
 import { useState } from 'react';
-import { View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { client } from '../src/api/client';
@@ -45,7 +45,7 @@ import {
   Title,
   spacing,
 } from '../src/ui/components';
-import { ScreenScroll } from '../src/ui/Screen';
+import { ConnectionStrip } from '../src/ui/Screen';
 import { useTheme, type Theme } from '../src/ui/theme';
 
 type AuthMode = 'password' | 'key';
@@ -120,7 +120,12 @@ export default function SetupSshScreen() {
 
   if (!availability.available) {
     return (
-      <ScreenScroll>
+      <KeyboardAvoidingView
+          style={{ flex: 1, backgroundColor: theme.bg }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ConnectionStrip />
+          <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
         <View style={{ gap: spacing.xs }}>
           <Title>Einfache Einrichtung</Title>
           <Body muted>Hier nicht verfügbar</Body>
@@ -131,12 +136,18 @@ export default function SetupSshScreen() {
           {availability.remedy ? <InfoBanner message={availability.remedy} /> : null}
           <Button label="Zur fortgeschrittenen Einrichtung" onPress={() => router.replace('/connect')} />
         </Card>
-      </ScreenScroll>
+      </ScrollView>
+    </KeyboardAvoidingView>
     );
   }
 
   return (
-    <ScreenScroll>
+    <KeyboardAvoidingView
+          style={{ flex: 1, backgroundColor: theme.bg }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ConnectionStrip />
+          <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
       <View style={{ gap: spacing.xs }}>
         <Title>Einfache Einrichtung</Title>
         <Body muted>
@@ -245,7 +256,8 @@ export default function SetupSshScreen() {
         }}
         onCancel={() => setConfirming(false)}
       />
-    </ScreenScroll>
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
