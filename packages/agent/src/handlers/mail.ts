@@ -8,7 +8,14 @@
  */
 
 import { isValidEmail, MIN_MAILBOX_PASSWORD_LENGTH } from '@uberapp/protocol';
-import { hasPtySupport, redact, run, runInteractive, runOrThrow } from '../exec.js';
+import {
+  hasPtySupport,
+  redact,
+  run,
+  runInteractive,
+  runOrThrow,
+  withoutPrompts,
+} from '../exec.js';
 import { RpcError, type Handler } from '../rpc.js';
 import {
   asObject,
@@ -123,7 +130,7 @@ const usersAdd: Handler = async (params) => {
     timeoutMs: 60_000,
   });
 
-  const output = redact((result.stdout + result.stderr).trim(), password);
+  const output = withoutPrompts(redact(result.stdout + result.stderr, password));
 
   if (!result.ok || /error|failed|too weak|score/i.test(output)) {
     throw RpcError.commandFailed(firstLine(output) || 'Could not create mailbox', output);
@@ -143,7 +150,7 @@ const usersPassword: Handler = async (params) => {
     timeoutMs: 60_000,
   });
 
-  const output = redact((result.stdout + result.stderr).trim(), password);
+  const output = withoutPrompts(redact(result.stdout + result.stderr, password));
 
   if (!result.ok || /error|failed|too weak|score/i.test(output)) {
     throw RpcError.commandFailed(firstLine(output) || 'Could not change password', output);

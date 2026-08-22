@@ -484,3 +484,26 @@ export function redact(text: string, ...secrets: string[]): string {
   }
   return out;
 }
+
+/**
+ * Password prompts, which a pty echoes back at us.
+ *
+ * The app answered these itself; showing them to the user afterwards suggests
+ * something is still waiting for input when nothing is. What is worth showing
+ * is whatever the command said about the result.
+ *
+ * Only these two shapes are removed, not every line ending in a colon: a
+ * result line may well end that way, and dropping one would hide the only
+ * thing the user actually wanted to read.
+ */
+const PASSWORD_PROMPT = /^(?:enter|re-?enter|please confirm|confirm|retype)\b.*\bpassword\b.*[:?]$/i;
+
+export function withoutPrompts(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => line.replace(/\r/g, '').trimEnd())
+    .filter((line) => !PASSWORD_PROMPT.test(line.trim()))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
