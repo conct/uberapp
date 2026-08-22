@@ -92,8 +92,13 @@ export default function OverviewScreen() {
             {connection.session?.host ?? ''}
           </Body>
         </View>
-        <Link href="/accounts" asChild>
-          <Button label="Wechseln" onPress={() => {}} />
+        {/*
+          Switching lives in the header, on every screen — a second route to it
+          here earned its place less than the one thing this header had no room
+          for at all: taking Uberapp back off the host.
+        */}
+        <Link href="/agent-remove" asChild>
+          <Button label="Entfernen" variant="danger" onPress={() => {}} />
         </Link>
       </View>
 

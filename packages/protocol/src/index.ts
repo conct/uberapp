@@ -117,6 +117,9 @@ export const METHODS = [
   // The agent updating its own checkout, so a change to it does not cost an
   // SSH setup run. Streams the build; the connection drops on the restart.
   'system.selfUpdate',
+  // The counterpart to install.sh: removes what the setup created and nothing
+  // else. Ends by removing the agent that is serving the call.
+  'system.uninstall',
 
   // --- firewall ports ------------------------------------------------------
   'ports.list',
@@ -213,6 +216,7 @@ export const STREAMING_METHODS: ReadonlySet<MethodName> = new Set<MethodName>([
   'services.logs',
   // npm install and a full build, on a shared host: minutes, not seconds.
   'system.selfUpdate',
+  'system.uninstall',
   'web.log.tail',
   // rsync's own output is the progress report, so these stream it verbatim
   // instead of making the user wait on a summary.
@@ -232,6 +236,7 @@ export const MUTATING_METHODS: ReadonlySet<MethodName> = new Set<MethodName>([
   'system.cron.set',
   'system.shell.set',
   'system.selfUpdate',
+  'system.uninstall',
   'ports.add',
   'ports.del',
   'services.control',

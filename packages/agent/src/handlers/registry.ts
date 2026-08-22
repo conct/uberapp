@@ -22,12 +22,14 @@ import { selfUpdateHandlers } from './selfUpdate.js';
 import { serviceHandlers } from './services.js';
 import { sieveHandlers } from './sieve.js';
 import { systemHandlers } from './system.js';
+import { uninstallHandlers } from './uninstall.js';
 import { webHandlers } from './web.js';
 
 export const handlers: Record<string, Handler> = {
   ...authHandlers,
   ...systemHandlers,
   ...selfUpdateHandlers,
+  ...uninstallHandlers,
   ...serviceHandlers,
   ...webHandlers,
   ...mailHandlers,
