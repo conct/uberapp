@@ -16,7 +16,6 @@ import {
   loadCredentials,
   removeAccount,
   saveCredentials,
-  secureStorageAvailable,
 } from '../src/api/storage';
 import {
   Body,
@@ -30,18 +29,9 @@ import {
   spacing,
 } from '../src/ui/components';
 import { BrowserPairing } from '../src/ui/BrowserPairing';
-import { OnboardingOverlay } from '../src/ui/Onboarding';
-import { isDesktopWeb } from '../src/ui/platform';
 import { sshAvailability } from '../src/api/ssh';
 import { QrScanner } from '../src/ui/QrScanner';
 import { useTheme } from '../src/ui/theme';
-
-/**
- * Shown once per app session, not once per visit to this screen: neither the
- * setup steps nor the storage risk change while the app is open, and
- * re-prompting trains people to dismiss without reading.
- */
-let guideAcknowledged = false;
 
 export default function ConnectScreen() {
   const theme = useTheme();
@@ -58,7 +48,6 @@ export default function ConnectScreen() {
   const [probing, setProbing] = useState(false);
   const [touched, setTouched] = useState(false);
 
-  const [guide, setGuide] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanNote, setScanNote] = useState<string | null>(null);
 
@@ -88,17 +77,6 @@ export default function ConnectScreen() {
     );
   };
 
-  // The storage warning is only shown where it is both true and actionable: a
-  // desktop browser with no keychain. On a phone browser the advice ("use the
-  // native app") points at the app the user already has, and native builds are
-  // unaffected.
-  const insecureStorage = !secureStorageAvailable && isDesktopWeb();
-
-  const dismissGuide = () => {
-    guideAcknowledged = true;
-    setGuide(false);
-  };
-
   useEffect(() => {
     void loadCredentials().then((credentials) => {
       // Pre-fill only when this screen is editing the connection that already
@@ -109,11 +87,7 @@ export default function ConnectScreen() {
         setUrl(credentials.url);
         setToken(credentials.token);
       }
-      // Open the guide on first use, or whenever the token would land in
-      // insecure storage — but never twice in one session.
-      if (!guideAcknowledged && (!credentials || insecureStorage)) setGuide(true);
     });
-    // Runs once: insecureStorage cannot change while the app is open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -238,13 +212,6 @@ export default function ConnectScreen() {
       style={{ flex: 1, backgroundColor: theme.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <OnboardingOverlay
-        agentReachable={connection.state === 'ready'}
-        visible={guide}
-        onDismiss={dismissGuide}
-        insecureStorage={insecureStorage}
-        onApplyUrl={setUrl}
-      />
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
         <View style={{ gap: spacing.sm }}>
           <Title>Mit dem Uberspace verbinden</Title>
@@ -360,14 +327,6 @@ export default function ConnectScreen() {
           </Card>
         ) : null}
 
-        <Card>
-          <SectionTitle>Wo finde ich das?</SectionTitle>
-          <Body muted>
-            Die Anleitung führt durch die Einrichtung des Agenten und zeigt, wo Adresse und Token
-            herkommen.
-          </Body>
-          <Button label="Anleitung öffnen" onPress={() => setGuide(true)} />
-        </Card>
       </ScrollView>
     </KeyboardAvoidingView>
   );

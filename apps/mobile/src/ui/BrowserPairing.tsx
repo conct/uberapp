@@ -161,6 +161,17 @@ export function BrowserPairing({ onPaired }: { onPaired: (payload: HandoffPayloa
             Der Schlüssel steckt nur in diesem Bild — der Vermittler bekommt ihn nie zu sehen und
             kann die Übergabe deshalb nicht mitlesen.
           </Body>
+          {/*
+            This used to live in an onboarding overlay that is gone now. The
+            point it made has not gone with it: a browser has no keychain, so
+            the access it receives is kept less carefully than the one on the
+            phone. That is why it is a separate, expiring token in the first
+            place, and worth one sentence where the decision is made.
+          */}
+          <Body muted style={{ fontSize: 12 }}>
+            Dieser Zugang läuft nach zwölf Stunden ab und lässt sich jederzeit zurücknehmen — ein
+            Browser bewahrt ihn weniger geschützt auf als das Handy, das einen Schlüsselbund hat.
+          </Body>
         </>
       ) : error ? null : (
         <Loading label="Code wird erzeugt…" />
