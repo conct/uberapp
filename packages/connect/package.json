@@ -1,0 +1,26 @@
+{
+  "name": "@uberapp/connect",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Uberapp handoff broker: holds one sealed payload per slot, briefly, and reads none of them",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@uberapp/protocol": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

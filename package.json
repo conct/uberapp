@@ -10,12 +10,14 @@
   "scripts": {
     "build:protocol": "npm run build -w @uberapp/protocol",
     "build:agent": "npm run build -w @uberapp/agent",
-    "build": "npm run build:protocol && npm run build:agent",
+    "build:connect": "npm run build -w @uberapp/connect",
+    "build": "npm run build:protocol && npm run build:agent && npm run build:connect",
     "dev:agent": "npm run dev -w @uberapp/agent",
     "app": "npm run start -w @uberapp/mobile",
-    "typecheck": "tsc -b packages/protocol packages/agent",
-    "test": "npm run test -w @uberapp/agent",
-    "setup": "node tools/setup.mjs"
+    "typecheck": "tsc -b packages/protocol packages/agent packages/connect",
+    "test": "npm run test -w @uberapp/agent && npm run test -w @uberapp/connect",
+    "setup": "node tools/setup.mjs",
+    "dev:connect": "npm run dev -w @uberapp/connect"
   },
   "engines": {
     "node": ">=20"
