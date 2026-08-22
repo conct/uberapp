@@ -79,6 +79,8 @@ function DomainsCard({
   const theme = useTheme();
   const [newDomain, setNewDomain] = useState('');
   const [toDelete, setToDelete] = useState<string | null>(null);
+  /** Which row asked for its DNS entries, so the answer appears beside it. */
+  const [recordsFor, setRecordsFor] = useState<string | null>(null);
 
   const add = useMutation('web.domains.add', { onSuccess: onChanged });
   const del = useMutation('web.domains.del', { onSuccess: onChanged });
@@ -102,34 +104,51 @@ function DomainsCard({
         // `uberspace web domain list` repeats <user>.uber.space. Rendering the
         // same domain twice would give two rows with one key between them.
         uniqueBy(query.data ?? [], (entry) => entry.domain).map((entry) => (
-          <View
-            key={entry.domain}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: spacing.sm,
-            }}
-          >
-            <Mono style={{ flexShrink: 1 }}>{entry.domain}</Mono>
-            <View style={{ flexDirection: 'row', gap: spacing.xs }}>
-              <Button
-                label="DNS"
-                onPress={() => void records.run({ domain: entry.domain }).catch(() => {})}
-              />
-              <Button label="Löschen" variant="danger" onPress={() => setToDelete(entry.domain)} />
+          <View key={entry.domain} style={{ gap: spacing.xs }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: spacing.sm,
+              }}
+            >
+              <Mono style={{ flexShrink: 1 }}>{entry.domain}</Mono>
+              <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+                <Button
+                  label="DNS"
+                  onPress={() => {
+                    setRecordsFor(entry.domain);
+                    void records.run({ domain: entry.domain }).catch(() => {});
+                  }}
+                />
+                <Button
+                  label="Löschen"
+                  variant="danger"
+                  onPress={() => setToDelete(entry.domain)}
+                />
+              </View>
             </View>
+
+            {/*
+              Beside the row that asked, not at the foot of the card. With two
+              dozen domains the answer rendered far below the fold, which is
+              indistinguishable from a button that does nothing — and that is
+              exactly how it was reported.
+            */}
+            {recordsFor === entry.domain ? (
+              records.pending ? (
+                <Loading />
+              ) : records.error ? (
+                <ErrorBanner message={records.error} />
+              ) : records.output ? (
+                <OutputBlock text={records.output} />
+              ) : null
+            ) : null}
           </View>
         ))
       )}
 
-      {/*
-        The error belongs here as much as the output. Without it a failing
-        "DNS" button looked like a button that did nothing at all: the call
-        rejects, the catch swallows it, and no branch renders anything.
-      */}
-      {records.error ? <ErrorBanner message={records.error} /> : null}
-      {records.output ? <OutputBlock text={records.output} /> : null}
       {add.error ? <ErrorBanner message={add.error} /> : null}
       {add.output ? <OutputBlock text={add.output} /> : null}
       {del.error ? <ErrorBanner message={del.error} /> : null}
