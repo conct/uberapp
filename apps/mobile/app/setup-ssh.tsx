@@ -69,6 +69,9 @@ export default function SetupSshScreen() {
   const [running, setRunning] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
+  /** Only a failed run has anything worth reading in its output. */
+  const failed = steps?.some((step) => step.state === 'failed') ?? false;
+
   // Accept "stardust", "stardust.uberspace.de" or "isabell@stardust…" and fill
   // the username in from the last of those, since people paste it that way.
   const parsed = parseSshTarget(target);
@@ -228,7 +231,14 @@ export default function SetupSshScreen() {
           {steps.map((step) => (
             <StepRow key={step.id} step={step} theme={theme} />
           ))}
-          {output.length > 0 ? <OutputBlock text={output.join('')} /> : null}
+          {/*
+            The raw session output, kept for the one case that needs it.
+            Watching a wall of build log scroll past says nothing a person can
+            act on — the step list already says where things are. When a step
+            fails, though, this is the only place the reason survives, so it
+            appears then and only then.
+          */}
+          {failed && output.length > 0 ? <OutputBlock text={output.join('')} /> : null}
         </Card>
       ) : null}
 

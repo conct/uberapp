@@ -145,6 +145,14 @@ export default function OverviewScreen() {
         <Link href="/diagnostics" asChild>
           <Button label="Diagnose" onPress={() => {}} />
         </Link>
+        {/*
+          Pairing lived behind the connection screen, which is reached through
+          "add another Uberspace" — the wrong door entirely, and in practice no
+          door at all. It belongs on the screen the app actually opens on.
+        */}
+        <Link href="/pair" asChild>
+          <Button label="Gerät koppeln" onPress={() => {}} />
+        </Link>
       </Card>
 
       <Card>

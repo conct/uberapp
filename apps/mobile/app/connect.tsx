@@ -193,6 +193,46 @@ export default function ConnectScreen() {
     else client.disconnect();
   };
 
+  /**
+   * The browser gets one way in, and it is the code.
+   *
+   * Everything else this screen offers is either impossible there or beside
+   * the point: the SSH setup needs raw TCP, and typing an address and a token
+   * by hand is the thing the handoff exists to replace. Leaving them on screen
+   * would present three doors where two are painted on.
+   */
+  if (Platform.OS === 'web') {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: 'center',
+            padding: spacing.lg,
+            gap: spacing.lg,
+            maxWidth: 520,
+            width: '100%',
+            alignSelf: 'center',
+          }}
+        >
+          <BrowserPairing
+            onPaired={(handoff) => {
+              setUrl(handoff.url);
+              setToken(handoff.token);
+              setTouched(true);
+              void saveCredentials({ url: handoff.url, token: handoff.token }).then(() =>
+                client.connect(handoff.url, handoff.token),
+              );
+            }}
+          />
+          {connection.state === 'error' && connection.error ? (
+            <ErrorBanner message={connection.error} />
+          ) : null}
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: theme.bg }}
@@ -213,24 +253,6 @@ export default function ConnectScreen() {
           </Body>
         </View>
 
-        {/*
-          On the web this is the way in, not an extra: a browser has no token
-          and no way to run the SSH setup, so it asks the phone. On a phone the
-          card would be pointing at itself.
-        */}
-        {Platform.OS === 'web' && connection.state !== 'ready' ? (
-          <BrowserPairing
-            onPaired={(handoff) => {
-              setUrl(handoff.url);
-              setToken(handoff.token);
-              setTouched(true);
-              void saveCredentials({ url: handoff.url, token: handoff.token }).then(() =>
-                client.connect(handoff.url, handoff.token),
-              );
-            }}
-          />
-        ) : null}
-
         {connection.state !== 'ready' ? (
           <Card>
             <SectionTitle>Einfache Einrichtung</SectionTitle>
@@ -245,17 +267,15 @@ export default function ConnectScreen() {
         ) : null}
 
         {scanning ? (
-          <QrScanner onResult={onScanned} onCancel={() => setScanning(false)} />
-        ) : Platform.OS === 'web' ? (
-          <Card>
-            <SectionTitle>Schneller: koppeln</SectionTitle>
-            <Body muted>
-              Zeig dir in der Handy-App unter „Gerät koppeln" einen Code an und halte die Kamera
-              darauf. Adresse und Token kommen dann von selbst.
-            </Body>
-            {scanNote ? <Body muted>{scanNote}</Body> : null}
-            <Button label="Mit QR-Code verbinden" onPress={() => setScanning(true)} />
-          </Card>
+          <>
+            <QrScanner onResult={onScanned} onCancel={() => setScanning(false)} />
+            {/*
+              The scanner's only feedback. Without it a camera pointed at the
+              wrong thing — or at an expired code — simply does nothing, which
+              reads as a broken scanner rather than a rejected code.
+            */}
+            {scanNote ? <ErrorBanner message={scanNote} /> : null}
+          </>
         ) : null}
 
         <Card>
@@ -327,7 +347,7 @@ export default function ConnectScreen() {
           </Card>
         ) : null}
 
-        {connection.state === 'ready' && Platform.OS !== 'web' ? (
+        {connection.state === 'ready' ? (
           <Card>
             <SectionTitle>Gerät koppeln</SectionTitle>
             <Body muted>
