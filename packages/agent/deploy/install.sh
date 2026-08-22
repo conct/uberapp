@@ -20,6 +20,18 @@ SERVICE_FILE="$HOME/etc/services.d/uberapp-agent.ini"
 CONNECT_PORT="${UBERAPP_CONNECT_PORT:-8400}"
 CONNECT_SERVICE_FILE="$HOME/etc/services.d/uberapp-connect.ini"
 
+# The web view and the broker share one subdomain of the default domain.
+# Sharing an origin means the browser derives the broker from its own
+# address and needs no configuration; a subdomain rather than a path means
+# the exported bundle's absolute asset paths resolve, and a subdomain of
+# the *default* domain means no DNS record has to exist anywhere.
+#
+# Its own DocumentRoot, deliberately: the account's html/ directory usually
+# holds a real site, and this must not go anywhere near it.
+WEB_DOMAIN="uberapp.${USER}.uber.space"
+WEB_ROOT="/var/www/virtual/${USER}/${WEB_DOMAIN}"
+WEB_SOURCE="$REPO_DIR/apps/mobile/web-dist"
+
 say() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
 # --- sanity checks ---------------------------------------------------------
@@ -107,6 +119,27 @@ fi
 
 sleep 3
 supervisorctl status uberapp-connect || true
+
+# --- web view --------------------------------------------------------------
+
+if [ -d "$WEB_SOURCE" ]; then
+  say "Publishing the web view"
+
+  # Adding a domain that is already there is not an error worth stopping for.
+  uberspace web domain add "$WEB_DOMAIN" >/dev/null 2>&1 || true
+  uberspace web backend set "$WEB_DOMAIN/connect" --http --port "$CONNECT_PORT" --remove-prefix     >/dev/null 2>&1 || true
+
+  mkdir -p "$WEB_ROOT"
+  # --delete so a renamed bundle does not leave its predecessor behind; the
+  # target is a directory this script created and owns.
+  rsync -a --delete "$WEB_SOURCE/" "$WEB_ROOT/"
+
+  echo "  https://$WEB_DOMAIN"
+else
+  say "No web view to publish"
+  echo "  $WEB_SOURCE does not exist. Build it with:"
+  echo "    npm run build:web -w @uberapp/mobile"
+fi
 
 # --- web backend -----------------------------------------------------------
 

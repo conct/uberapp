@@ -23,3 +23,7 @@
 *.otf binary
 *.woff binary
 *.woff2 binary
+
+# Build output, shipped verbatim to the host. Any end-of-line rewriting here
+# changes bytes that are served as-is — and the bundled fonts are binary.
+apps/mobile/web-dist/** -text
