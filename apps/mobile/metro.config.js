@@ -44,9 +44,11 @@ const HTTP = path.resolve(projectRoot, 'src/shims/http.js');
 const ZLIB = path.resolve(projectRoot, 'src/shims/zlib.js');
 // ssh2's Poly1305 is a WebAssembly build, and Hermes has no WebAssembly.
 const POLY1305 = path.resolve(projectRoot, 'src/shims/poly1305.js');
+// quick-crypto reports cipher names in OpenSSL's upper case; Node uses lower.
+const CRYPTO = path.resolve(projectRoot, 'src/shims/crypto.js');
 
 const NODE_SHIMS = {
-  crypto: 'react-native-quick-crypto',
+  crypto: CRYPTO,
   net: 'react-native-tcp-socket',
   tls: 'react-native-tcp-socket',
   stream: 'readable-stream',
