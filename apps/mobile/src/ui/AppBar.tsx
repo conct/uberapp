@@ -90,8 +90,11 @@ export function AppBar({ title: given, onBack }: AppBarProps = {}) {
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingLeft: spacing.lg,
-          // The buttons carry their own padding out to the edge.
-          paddingRight: spacing.xs,
+          // Right is set by eye, not by matching the left. Each action is a
+          // 44-wide tap target around a 21-wide icon, so the glyph already
+          // sits ~11 short of its own box; the arithmetic said four and it
+          // still read as jammed against the edge.
+          paddingRight: spacing.lg,
           gap: spacing.sm,
         }}
       >
@@ -125,7 +128,9 @@ export function AppBar({ title: given, onBack }: AppBarProps = {}) {
           </Text>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        {/* The 44-wide targets already leave ~23 between glyphs; the gap is
+            what makes them read as three separate things rather than a strip. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           {(onBack ? [] : ACTIONS).map((action) => (
             <Link key={action.href} href={action.href} asChild>
               <Pressable

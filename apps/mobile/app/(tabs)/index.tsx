@@ -3,7 +3,8 @@
  * anything is on fire.
  */
 
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import type {
   DiskUsageEntry,
@@ -94,11 +95,26 @@ export default function OverviewScreen() {
         </View>
         {/*
           Switching lives in the header, on every screen — a second route to it
-          here earned its place less than the one thing this header had no room
-          for at all: taking Uberapp back off the host.
+          here earned its place less than the one thing that had nowhere to
+          live at all: taking Uberapp back off the host. An icon rather than a
+          word, because a labelled danger button beside the account name reads
+          like the primary thing to do with it.
         */}
         <Link href="/agent-remove" asChild>
-          <Button label="Entfernen" variant="danger" onPress={() => {}} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Uberapp vom Host entfernen"
+            hitSlop={10}
+            style={({ pressed }) => ({
+              width: 40,
+              height: 40,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.5 : 1,
+            })}
+          >
+            <Ionicons name="trash-outline" size={20} color={theme.danger} />
+          </Pressable>
         </Link>
       </View>
 
