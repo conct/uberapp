@@ -28,7 +28,8 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "react-native-quick-crypto"
+      "react-native-quick-crypto",
+      "./plugins/withCmakeVersion"
     ],
     "scheme": "uberapp",
     "experiments": {
