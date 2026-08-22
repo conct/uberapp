@@ -46,25 +46,23 @@ function safeComment(input: string): string {
 export function generateKey(comment: string): GeneratedKey {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const crypto = require('react-native-quick-crypto') as {
-    generateKeyPairSync: (
-      type: 'ed25519',
-      options: {
-        publicKeyEncoding: { format: 'raw-public' };
-        privateKeyEncoding: { format: 'raw-seed' };
-      },
-    ) => { publicKey: Uint8Array; privateKey: Uint8Array };
+    generateKeyPairSync: (type: 'ed25519') => {
+      publicKey: { export: (options: { format: 'raw-public' }) => Uint8Array };
+      privateKey: { export: (options: { format: 'raw-seed' }) => Uint8Array };
+    };
     randomBytes: (size: number) => Uint8Array;
   };
 
   // ed25519 and not RSA because quick-crypto generates nothing else; see the
   // note in @uberapp/protocol's sshkey.ts for why that decided the format too.
-  const pair = crypto.generateKeyPairSync('ed25519', {
-    publicKeyEncoding: { format: 'raw-public' },
-    privateKeyEncoding: { format: 'raw-seed' },
-  });
-
-  const publicKey = new Uint8Array(pair.publicKey);
-  const seed = new Uint8Array(pair.privateKey);
+  //
+  // The raw bytes come off the key objects rather than out of generateKeyPair:
+  // 'raw-public' and 'raw-seed' are formats export() understands, not encodings
+  // the generator accepts. Passing them there throws, which is how this first
+  // reached a host reporting nothing but "skipped".
+  const pair = crypto.generateKeyPairSync('ed25519');
+  const publicKey = new Uint8Array(pair.publicKey.export({ format: 'raw-public' }));
+  const seed = new Uint8Array(pair.privateKey.export({ format: 'raw-seed' }));
   const label = safeComment(comment);
 
   return {

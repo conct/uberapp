@@ -105,6 +105,12 @@ export interface ProvisionOptions {
   authorizedKey?: string | null;
   /** The shell that installs it, built beside the key that it carries. */
   installKeyCommand?: (authorizedKey: string) => string;
+  /**
+   * Why there is no key to install, when there should have been one. Reported
+   * as the step's detail: a step that says only "skipped" cannot be told apart
+   * from one that had nothing to do, and the difference is the whole point.
+   */
+  keyProblem?: string | null;
 }
 
 export async function provision(options: ProvisionOptions): Promise<ProvisionResult> {
@@ -186,6 +192,7 @@ export async function provision(options: ProvisionOptions): Promise<ProvisionRes
   await step('key', async () => {
     const line = options.authorizedKey;
     const build = options.installKeyCommand;
+    if (options.keyProblem) return `kein Schlüssel: ${options.keyProblem}`;
     if (!line || !build) return 'übersprungen';
 
     const result = await runner.run(credentials, build(line));

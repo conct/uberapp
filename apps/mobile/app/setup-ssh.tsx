@@ -136,11 +136,15 @@ export default function SetupSshScreen() {
     // is the last one this host needs. Only when a password is what got us in:
     // logging in with a key already means there is one.
     let generated: ReturnType<typeof generateKey> | null = null;
+    let keyProblem: string | null = null;
     if (mode === 'password' && canStoreKeys) {
       try {
         generated = generateKey(`uberapp@${effectiveUser}`);
-      } catch {
-        // No crypto in this build. The setup works, it just stays password-only.
+      } catch (err) {
+        // Swallowed silently once, and the step then reported "skipped" — the
+        // same word it uses when there was genuinely nothing to do. The setup
+        // still works without a key; what it must not do is hide why.
+        keyProblem = err instanceof Error ? err.message : String(err);
       }
     }
 
@@ -153,6 +157,7 @@ export default function SetupSshScreen() {
         onOutput: (chunk) => setOutput((previous) => [...previous, chunk].slice(-200)),
         authorizedKey: generated?.authorizedKey ?? null,
         installKeyCommand,
+        keyProblem,
       });
 
       // Kept only after the host accepted it, and kept under the login it was
