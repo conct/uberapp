@@ -7,9 +7,10 @@
  *   runInteractive() — drives a pty for commands that read from /dev/tty
  *                      (uberspace mail user add asks for a password twice).
  *
- * Nothing here ever interpolates user input into a shell string except in
- * runInteractive(), which has to go through `script -qec` to get a tty. That
- * path quotes every argument and its callers only pass regex-validated values.
+ * Nothing here ever interpolates user input into a shell string. That was true
+ * with one exception until the pty path stopped going through `script -qec`,
+ * which needed a command line; it now passes argv straight through to a Python
+ * helper, so there is no shell anywhere in this file.
  */
 
 import {
@@ -307,35 +308,137 @@ export function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
-let ptySupport: boolean | null = null;
+/**
+ * A pty that actually accepts input, written in Python.
+ *
+ * The obvious tool is `script -qec <cmd> /dev/null`, and that is what this
+ * used to be. It allocates a pty, so the command starts — and then nothing we
+ * write to the wrapper's stdin reaches the program inside it. Against the real
+ * CLI the result was:
+ *
+ *   Enter a password for the mailbox: Traceback (most recent call last):
+ *     ...
+ *     passwd = _raw_input(prompt, stream, input=input)
+ *     raise EOFError
+ *
+ * getpass() reads /dev/tty, got end-of-file on the first read, and gave up.
+ * `script` forwards stdin only when its own stdin is a terminal; under a
+ * daemon it is a pipe, so the pty's input side was empty from the start.
+ *
+ * Python is not an extra dependency here — the uberspace CLI is itself Python,
+ * as that traceback shows. pty.fork() gives a master descriptor we own, so the
+ * answers go where the program is actually reading from.
+ *
+ * Answers arrive on this helper's stdin, one per line, rather than in argv:
+ * argv is world-readable in `ps`, and these are passwords.
+ */
+const PTY_HELPER = `
+import os
+import pty
+import re
+import select
+import sys
+
+PROMPT = re.compile(r"[:?][ \\t]*$")
+
+
+def main():
+    argv = sys.argv[1:]
+    if not argv:
+        sys.stderr.write("usage: <command> [args...]\\n")
+        return 2
+
+    raw = sys.stdin.read()
+    answers = raw.split("\\n") if raw else []
+
+    pid, fd = pty.fork()
+    if pid == 0:
+        try:
+            os.execvp(argv[0], argv)
+        except Exception:
+            os._exit(127)
+
+    pending = b""
+    sent = 0
+    while True:
+        try:
+            ready, _, _ = select.select([fd], [], [], 1.0)
+        except OSError:
+            break
+        if not ready:
+            continue
+        try:
+            data = os.read(fd, 65536)
+        except OSError:
+            # The master raises EIO once the child is gone.
+            break
+        if not data:
+            break
+
+        os.write(1, data)
+        pending += data
+
+        if sent < len(answers):
+            text = pending.decode("utf-8", "replace").rstrip("\\r\\n")
+            if PROMPT.search(text):
+                os.write(fd, answers[sent].encode("utf-8") + b"\\n")
+                sent += 1
+                pending = b""
+
+    _, status = os.waitpid(pid, 0)
+    return os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1
+
+
+sys.exit(main())
+`;
+
+/** Tried in order; the first one that can import pty wins. */
+const PYTHON_CANDIDATES = ['python3', 'python'];
+
+let ptyCommand: string | null | undefined;
 
 /**
- * Whether a pty helper is available. Uberspace runs AlmaLinux, where
- * util-linux provides `script`, but we verify instead of assuming.
+ * The interpreter that can run the helper, or null when there is none.
+ *
+ * Cached because it cannot change while the agent is running, and the probe
+ * costs a process spawn.
  */
-export async function hasPtySupport(): Promise<boolean> {
-  if (ptySupport !== null) return ptySupport;
-  try {
-    const probe = await run('script', ['-qec', 'true', '/dev/null'], { timeoutMs: 5000 });
-    ptySupport = probe.exitCode === 0;
-  } catch {
-    ptySupport = false;
+async function findPython(): Promise<string | null> {
+  if (ptyCommand !== undefined) return ptyCommand;
+
+  for (const candidate of PYTHON_CANDIDATES) {
+    try {
+      const probe = await run(candidate, ['-c', 'import pty, select'], { timeoutMs: 5000 });
+      if (probe.exitCode === 0) {
+        ptyCommand = candidate;
+        return ptyCommand;
+      }
+    } catch {
+      // Not installed under this name; try the next.
+    }
   }
-  return ptySupport;
+
+  ptyCommand = null;
+  return ptyCommand;
+}
+
+/** Whether prompts can be answered at all on this host. */
+export async function hasPtySupport(): Promise<boolean> {
+  return (await findPython()) !== null;
 }
 
 export interface InteractiveOptions extends RunOptions {
   /**
-   * Answers fed to successive prompts, in order. An answer is sent whenever
-   * the child's output ends with a prompt (a colon, optionally followed by
-   * whitespace) and answers remain.
+   * Answers fed to successive prompts, in order. One is sent each time the
+   * program's output ends with a colon or question mark, until they run out.
+   *
+   * There is deliberately no way to override that pattern from here: the
+   * matching happens inside the pty helper, which is the only side that can
+   * see the output as it arrives, and an option that quietly did nothing
+   * would be worse than none.
    */
   answers: string[];
-  /** Extra regex a chunk must match to count as a prompt. */
-  promptPattern?: RegExp;
 }
-
-const DEFAULT_PROMPT = /[:?]\s*$/;
 
 /**
  * Run a command under a pty and answer its prompts.
@@ -346,83 +449,27 @@ const DEFAULT_PROMPT = /[:?]\s*$/;
  * it in `script` gives it the tty it insists on, and lets the app collect the
  * mailbox name and password in one form and send them in a single call.
  */
-export function runInteractive(
+export async function runInteractive(
   file: string,
   args: string[],
   opts: InteractiveOptions,
 ): Promise<RunResult> {
-  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const promptRe = opts.promptPattern ?? DEFAULT_PROMPT;
-  const commandLine = [file, ...args].map(shellQuote).join(' ');
-
-  return new Promise((resolve, reject) => {
-    const child = spawn('script', ['-qec', commandLine, '/dev/null'], {
-      env: { ...process.env, TERM: 'dumb' },
-      shell: false,
-      stdio: ['pipe', 'pipe', 'pipe'],
+  const python = await findPython();
+  if (python === null) {
+    throw new CommandError('No Python interpreter with a pty module was found', {
+      ok: false,
+      stdout: '',
+      stderr: '',
+      exitCode: null,
     });
+  }
 
-    // A pty echoes everything back on stdout, so stderr is usually empty here.
-    let output = '';
-    let settled = false;
-    const pending = [...opts.answers];
-    // The pty echoes our own newline, which can re-trigger the prompt match.
-    // Only answer once per quiet period.
-    let answering = false;
-
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      child.kill('SIGKILL');
-      reject(
-        new CommandError(`Interactive command timed out after ${timeoutMs}ms: ${file}`, {
-          ok: false,
-          stdout: output,
-          stderr: '',
-          exitCode: null,
-        }),
-      );
-    }, timeoutMs);
-
-    const maybeAnswer = () => {
-      if (settled || answering || pending.length === 0) return;
-      if (!promptRe.test(output.trimEnd() + (output.endsWith(' ') ? ' ' : ''))) {
-        if (!promptRe.test(output)) return;
-      }
-      answering = true;
-      const answer = pending.shift() as string;
-      child.stdin.write(answer + '\n');
-      // Give the child a moment to consume the answer and print the next
-      // prompt before we consider answering again.
-      setTimeout(() => {
-        answering = false;
-        maybeAnswer();
-      }, 250).unref();
-    };
-
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (d: string) => {
-      output += d;
-      maybeAnswer();
-    });
-    child.stderr.on('data', (d: string) => {
-      output += d;
-    });
-
-    child.on('error', (err) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      reject(describeSpawnError(err as NodeJS.ErrnoException, 'script'));
-    });
-
-    child.on('close', (code) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve({ ok: code === 0, stdout: output, stderr: '', exitCode: code });
-    });
+  // The helper takes the command in argv and the answers on stdin, so nothing
+  // secret is visible in the process list. Prompt detection lives in there,
+  // next to the descriptor it has to write to.
+  return run(python, ['-c', PTY_HELPER, file, ...args], {
+    ...opts,
+    input: opts.answers.join('\n'),
   });
 }
 

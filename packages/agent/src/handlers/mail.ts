@@ -99,7 +99,9 @@ async function requirePty(): Promise<void> {
     throw new RpcError(
       'forbidden',
       'This agent cannot set mailbox passwords: no pty helper available.',
-      'The uberspace CLI reads passwords from /dev/tty. Install util-linux (script) on the host, or create the mailbox over SSH.',
+      'The uberspace CLI reads passwords from /dev/tty, so answering it needs a pty. ' +
+        'That is done with Python, which no interpreter on this host appears to provide ' +
+        '(neither python3 nor python could import the pty module). Create the mailbox over SSH instead.',
     );
   }
 }
