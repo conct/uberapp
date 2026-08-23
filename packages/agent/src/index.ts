@@ -27,6 +27,7 @@ import { authenticate } from './tokens.js';
 import { SNAPSHOT_ROOT } from './handlers/backup.js';
 import { runWatchPass, WATCH_POLL_MS } from './handlers/certs.js';
 import { hasMysqlCredentials, myCnfPath } from './handlers/db.js';
+import { readAccount } from './inwx.js';
 import { handlers, missingHandlers } from './handlers/registry.js';
 
 // Fail fast on a method that is advertised but not wired up. The test suite
@@ -293,6 +294,13 @@ async function detectCapabilities(): Promise<Capability[]> {
     capabilities.push('databases');
   } else {
     log('warn', `${myCnfPath()} is missing — database administration is disabled.`);
+  }
+
+  // The switch that keeps domains out of a build that has no registrar: no
+  // credentials on the host, no capability, and the app shows nothing. Absence
+  // is the ordinary case here, so it is not worth a warning.
+  if (await readAccount()) {
+    capabilities.push('domains');
   }
 
   return capabilities;

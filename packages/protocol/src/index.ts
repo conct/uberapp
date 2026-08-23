@@ -88,7 +88,12 @@ export type Capability =
   /** MySQL administration. Absent when ~/.my.cnf holds no credentials. */
   | 'databases'
   /** Only present when a pty helper is available for password prompts. */
-  | 'interactive';
+  | 'interactive'
+  /**
+   * Domains and DNS at the registrar. Present only when the host holds an
+   * INWX account, which is what keeps this out of a build that has none.
+   */
+  | 'domains';
 
 // ---------------------------------------------------------------------------
 // Method catalog
@@ -200,6 +205,14 @@ export const METHODS = [
   'backup.db.list',
   'backup.db.restore',
 
+  // --- domains and DNS -----------------------------------------------------
+  'domains.list',
+  'domains.check',
+  'dns.records',
+  'dns.createRecord',
+  'dns.updateRecord',
+  'dns.deleteRecord',
+
   // --- files / deploy ------------------------------------------------------
   'files.list',
   'files.read',
@@ -272,6 +285,9 @@ export const MUTATING_METHODS: ReadonlySet<MethodName> = new Set<MethodName>([
   'mail.sieve.del',
   'backup.restore',
   'backup.db.restore',
+  'dns.createRecord',
+  'dns.updateRecord',
+  'dns.deleteRecord',
   'db.mysql.create',
   'db.mysql.drop',
   'db.mysql.import',
@@ -1020,3 +1036,6 @@ export * from './failure.js';
 
 // The ed25519 key that replaces the password on later setup runs.
 export * from './sshkey.js';
+
+// Domains and DNS records, in the app's vocabulary rather than a registrar's.
+export * from './dns.js';

@@ -14,6 +14,7 @@ import { authHandlers } from './auth.js';
 import { backupHandlers } from './backup.js';
 import { certHandlers } from './certs.js';
 import { dbHandlers } from './db.js';
+import { domainHandlers } from './domains.js';
 import { diagnosticsHandlers } from './diagnostics.js';
 import { fileHandlers } from './files.js';
 import { mailHandlers } from './mail.js';
@@ -37,6 +38,7 @@ export const handlers: Record<string, Handler> = {
   ...portHandlers,
   ...backupHandlers,
   ...dbHandlers,
+  ...domainHandlers,
   ...sieveHandlers,
   ...certHandlers,
   ...diagnosticsHandlers,
