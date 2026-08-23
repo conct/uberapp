@@ -212,6 +212,12 @@ export const METHODS = [
   'dns.createRecord',
   'dns.updateRecord',
   'dns.deleteRecord',
+  'domains.prices',
+  'domains.contacts',
+  // These two spend money. Both require the caller to name the price it
+  // expects, and both offer a dry run that validates without buying.
+  'domains.register',
+  'domains.transfer',
 
   // --- files / deploy ------------------------------------------------------
   'files.list',
@@ -288,6 +294,8 @@ export const MUTATING_METHODS: ReadonlySet<MethodName> = new Set<MethodName>([
   'dns.createRecord',
   'dns.updateRecord',
   'dns.deleteRecord',
+  'domains.register',
+  'domains.transfer',
   'db.mysql.create',
   'db.mysql.drop',
   'db.mysql.import',

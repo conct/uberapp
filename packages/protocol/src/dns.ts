@@ -122,3 +122,21 @@ export function dnsRecordProblem(input: DnsRecordInput): string | null {
 
   return null;
 }
+
+/** What a registrar wants for one top-level domain, per year. */
+export interface DomainPrice {
+  tld: string;
+  createPrice: number | null;
+  transferPrice: number | null;
+  renewalPrice: number | null;
+  currency: string | null;
+}
+
+/** A contact handle at the registrar, as a domain must name four of them. */
+export interface DomainContact {
+  id: number;
+  name: string;
+  org: string | null;
+  email: string;
+  country: string;
+}
