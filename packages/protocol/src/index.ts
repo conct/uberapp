@@ -545,6 +545,17 @@ export interface ServiceSpec {
   /** Seconds the process must survive before supervisord calls it started. */
   startsecs: number;
   environment?: Record<string, string>;
+  /**
+   * The port a web backend was pointed at, recorded as a comment.
+   *
+   * Not a supervisord directive — it exists so the port can be found again
+   * when the service is deleted, and the route taken down with it. Nothing
+   * else in the file names it: the create flow only substitutes {PORT} into
+   * the command, so a service whose command does not use the placeholder left
+   * no trace of its port at all. Deleting one then removed the service and
+   * left a backend answering 502, which is exactly the state this avoids.
+   */
+  port?: number | null;
 }
 
 /**
@@ -603,11 +614,18 @@ export function buildServiceIni(spec: ServiceSpec): string {
     );
   }
 
-  const lines = [
-    '; created with uberapp',
-    `[program:${spec.name}]`,
-    `command=${spec.command}`,
-  ];
+  const lines = ['; created with uberapp'];
+
+  // Before the section header, so it survives as a comment no matter what
+  // supervisord does with the rest.
+  if (spec.port !== undefined && spec.port !== null) {
+    if (!Number.isInteger(spec.port) || spec.port < 1 || spec.port > 65535) {
+      throw new ServiceSpecError(`${spec.port} is not a port number`);
+    }
+    lines.push(`; uberapp-port=${spec.port}`);
+  }
+
+  lines.push(`[program:${spec.name}]`, `command=${spec.command}`);
 
   if (spec.directory) lines.push(`directory=${spec.directory}`);
   lines.push(`autostart=${spec.autostart ? 'yes' : 'no'}`);

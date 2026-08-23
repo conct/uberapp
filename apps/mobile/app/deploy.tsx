@@ -178,6 +178,9 @@ export default function DeployScreen() {
       const content = buildServiceIni({
         ...spec,
         command: port === null ? spec.command : spec.command.replaceAll('{PORT}', String(port)),
+        // Recorded so deleting this service can find its route again. The
+        // command only carries the port when it uses {PORT}, and most do not.
+        port,
       });
 
       await step(

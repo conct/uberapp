@@ -46,6 +46,25 @@ import { digestsMatch, hashToken, isExpired, prune } from '../src/tokens.js';
 import { shellQuote } from '../src/exec.js';
 
 describe('portsIn', () => {
+  // The marker the create flow writes. Without it the port was nowhere in the
+  // file at all - a service whose command does not use {PORT} left no trace -
+  // and deleting it removed the service but left a backend answering 502.
+  it('reads the marker the create flow leaves', () => {
+    const ini = [
+      '; created with uberapp',
+      '; uberapp-port=45678',
+      '[program:probe]',
+      'command=/bin/sleep 600',
+      'startsecs=30',
+    ].join('\n');
+    assert.deepEqual(portsIn(ini), [45678]);
+  });
+
+  it('trusts the marker over anything else in the file', () => {
+    const ini = ['; uberapp-port=45678', 'command=node app.js --port 8080'].join('\n');
+    assert.deepEqual(portsIn(ini), [45678]);
+  });
+
   // The only link between a service and its web backend, so a miss leaves a
   // route to nothing and a false hit deletes somebody else's.
   it('finds the port the create wizard put in the environment', () => {

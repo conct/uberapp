@@ -224,6 +224,10 @@ export function isNothingToDo(output: string): boolean {
  * web backend list` maps a target to it, and the CLI deletes by target. The
  * port is the lookup key, never the thing deleted.
  *
+ * The marker the create flow leaves comes first and is authoritative. The
+ * rest are guesses at a config somebody else wrote, and they only run when
+ * there is no marker to read.
+ *
  * Deliberately narrow. Reading every four-digit number was the obvious first
  * attempt and it is wrong in a way that costs somebody else their routing:
  * `--since 2026` is a year, not a port, and a backend on 2026 would have been
@@ -231,6 +235,9 @@ export function isNothingToDo(output: string): boolean {
  * which the step reports; a wrong one removes a live one, which it cannot.
  * So only the three forms that actually say "port" are read.
  */
+/** Written by the create flow, and the only place that is not a guess. */
+const PORT_MARKER = /^;\s*uberapp-port\s*=\s*(\d{1,5})\s*$/im;
+
 const PORT_PATTERNS: readonly RegExp[] = [
   // environment=PORT="8080", which is where the create wizard puts it
   /\bPORT\s*=\s*"?(\d{4,5})"?/gi,
@@ -241,6 +248,12 @@ const PORT_PATTERNS: readonly RegExp[] = [
 ];
 
 export function portsIn(iniContent: string): number[] {
+  const marked = PORT_MARKER.exec(iniContent);
+  if (marked) {
+    const port = Number(marked[1]);
+    if (port >= 1 && port <= 65535) return [port];
+  }
+
   const found = new Set<number>();
   for (const pattern of PORT_PATTERNS) {
     for (const match of iniContent.matchAll(pattern)) {
