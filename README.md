@@ -110,7 +110,7 @@ Dump/Import) · Backup (Snapshots, Vorschau, Wiederherstellung) · Ports (mit
 ```bash
 npm install
 npm run build      # protocol, agent, connect
-npm test           # 171 Tests
+npm test           # 177 Tests
 npm run typecheck
 npm run app        # Metro
 ```
