@@ -9,6 +9,7 @@ import { access, readFile, writeFile, unlink, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ServiceInfo, ServiceState } from '@uberapp/protocol';
 import { run, runStream } from '../exec.js';
+import { parseBackends } from './web.js';
 import { RpcError, type CallContext, type Handler } from '../rpc.js';
 import {
   asObject,
@@ -215,6 +216,41 @@ export function isNothingToDo(output: string): boolean {
   return NOTHING_TO_DO.test(output);
 }
 
+/**
+ * The ports a service's own config mentions.
+ *
+ * Used to find the web backends that point at it. The link between a service
+ * and its route is the port and nothing else: the .ini names it, `uberspace
+ * web backend list` maps a target to it, and the CLI deletes by target. The
+ * port is the lookup key, never the thing deleted.
+ *
+ * Deliberately narrow. Reading every four-digit number was the obvious first
+ * attempt and it is wrong in a way that costs somebody else their routing:
+ * `--since 2026` is a year, not a port, and a backend on 2026 would have been
+ * deleted along with an unrelated service. A missed port leaves a dead route,
+ * which the step reports; a wrong one removes a live one, which it cannot.
+ * So only the three forms that actually say "port" are read.
+ */
+const PORT_PATTERNS: readonly RegExp[] = [
+  // environment=PORT="8080", which is where the create wizard puts it
+  /\bPORT\s*=\s*"?(\d{4,5})"?/gi,
+  // --port 8080 or --port=8080 on the command line
+  /--port[= ](\d{4,5})\b/gi,
+  // a bind address, 0.0.0.0:8080
+  /:(\d{4,5})\b/g,
+];
+
+export function portsIn(iniContent: string): number[] {
+  const found = new Set<number>();
+  for (const pattern of PORT_PATTERNS) {
+    for (const match of iniContent.matchAll(pattern)) {
+      const port = Number(match[1]);
+      if (port >= 1024 && port <= 65535) found.add(port);
+    }
+  }
+  return [...found];
+}
+
 type StepState = 'ok' | 'skipped' | 'failed';
 
 interface DeleteStep {
@@ -243,6 +279,11 @@ const deleteService: Handler = async (params, ctx) => {
   const path = join(SERVICES_DIR(ctx.config.home), `${name}.ini`);
   const steps: DeleteStep[] = [];
 
+  // Read before anything is removed. Once the .ini is gone so is the only
+  // record of which port the service used, and with it the only way to tell
+  // which route belonged to it.
+  const config = await readFile(path, 'utf8').catch(() => '');
+
   const supervisor = async (step: string, args: string[]) => {
     const result = await run('supervisorctl', args, { timeoutMs: 60_000 });
     const output = (result.stdout + result.stderr).trim();
@@ -266,6 +307,39 @@ const deleteService: Handler = async (params, ctx) => {
     } else {
       steps.push({ step: 'config', state: 'failed', detail: `${path}: ${String(err)}` });
     }
+  }
+
+  // A route to a service that no longer exists is worse than no route: it
+  // answers 502 rather than 404, and nothing on the host says why. The create
+  // wizard makes the service and its backend in one go, so removing one
+  // without the other leaves exactly the half that cannot be diagnosed from
+  // the outside.
+  try {
+    const ports = portsIn(config);
+    if (ports.length === 0) {
+      steps.push({ step: 'backend', state: 'skipped', detail: 'no port in the config' });
+    } else {
+      const listed = await run('uberspace', ['web', 'backend', 'list'], { timeoutMs: 30_000 });
+      const mine = parseBackends(listed.stdout || listed.stderr).filter(
+        (backend) => backend.port !== null && ports.includes(backend.port),
+      );
+
+      if (mine.length === 0) {
+        steps.push({ step: 'backend', state: 'skipped', detail: 'none pointed here' });
+      } else {
+        const removed: string[] = [];
+        for (const backend of mine) {
+          const target = `${backend.domain}${backend.path}`;
+          await run('uberspace', ['web', 'backend', 'del', target], { timeoutMs: 60_000 });
+          removed.push(target);
+        }
+        steps.push({ step: 'backend', state: 'ok', detail: removed.join(', ') });
+      }
+    }
+  } catch (err) {
+    // The service still goes. A route left behind is a loose end worth
+    // reporting, not a reason to abandon a removal half-done.
+    steps.push({ step: 'backend', state: 'failed', detail: String(err) });
   }
 
   await supervisor('reread', ['reread']);

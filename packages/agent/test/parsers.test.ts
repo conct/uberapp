@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { isNothingToDo, parseStatus } from '../src/handlers/services.js';
+import { isNothingToDo, parseStatus, portsIn } from '../src/handlers/services.js';
 import { parseCatchall, parseForward, parseSpamfolder } from '../src/handlers/mail.js';
 import { parseBackends, parseHeaders, toPunycode } from '../src/handlers/web.js';
 import { shouldRestart } from '../src/handlers/certs.js';
@@ -44,6 +44,34 @@ import {
 import { missingHandlers, strayHandlers } from '../src/handlers/registry.js';
 import { digestsMatch, hashToken, isExpired, prune } from '../src/tokens.js';
 import { shellQuote } from '../src/exec.js';
+
+describe('portsIn', () => {
+  // The only link between a service and its web backend, so a miss leaves a
+  // route to nothing and a false hit deletes somebody else's.
+  it('finds the port the create wizard put in the environment', () => {
+    const ini = [
+      '; created with uberapp',
+      '[program:probe]',
+      'command=/bin/sleep 600',
+      'startsecs=30',
+      'environment=PORT="8080"',
+    ].join('\n');
+    assert.deepEqual(portsIn(ini).sort(), [8080]);
+  });
+
+  it('finds one substituted into the command', () => {
+    assert.deepEqual(portsIn('command=node server.js --port 41234'), [41234]);
+  });
+
+  it('ignores numbers no service could be listening on', () => {
+    // startsecs and a low port are both out of range, and so is a year.
+    assert.deepEqual(portsIn('startsecs=30\ncommand=x --since 2026 --bind 80'), []);
+  });
+
+  it('has nothing to say about a config without one', () => {
+    assert.deepEqual(portsIn('[program:worker]\ncommand=/bin/true'), []);
+  });
+});
 
 describe('isNothingToDo', () => {
   // Deleting a service runs four commands, and somebody who already stopped it

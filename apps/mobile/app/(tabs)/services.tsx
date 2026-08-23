@@ -56,6 +56,7 @@ const STEP_LABEL: Record<string, string> = {
   stop: 'Gestoppt',
   remove: 'Aus supervisord entfernt',
   config: '.ini gelöscht',
+  backend: 'Web-Backend entfernt',
   reread: 'Neu eingelesen',
   update: 'Übernommen',
 };
