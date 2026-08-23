@@ -135,9 +135,14 @@ export default function SetupSshScreen() {
     // Generated per run and installed during it, so the password typed above
     // is the last one this host needs. Only when a password is what got us in:
     // logging in with a key already means there is one.
+    // Only when there is not one already. Without the last condition every run
+    // minted a fresh key and appended it, so a host collected a new line in its
+    // authorized_keys each time the setup was repeated — and the device kept
+    // only the newest, leaving the rest as entries nothing can revoke because
+    // nothing remembers them.
     let generated: ReturnType<typeof generateKey> | null = null;
     let keyProblem: string | null = null;
-    if (mode === 'password' && canStoreKeys) {
+    if (mode === 'password' && canStoreKeys && !storedKey) {
       try {
         generated = generateKey(`uberapp@${effectiveUser}`);
       } catch (err) {
