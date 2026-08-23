@@ -110,7 +110,7 @@ so you see whether anything is listening) · Files · Cron · Diagnostics.
 ```bash
 npm install
 npm run build      # protocol, agent, connect
-npm test           # 205 tests
+npm test           # 222 tests
 npm run typecheck
 npm run app        # Metro
 ```
