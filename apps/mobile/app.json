@@ -8,7 +8,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "space.feif.uberctrl"
+      "bundleIdentifier": "de.uberctrl.client"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +18,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "space.feif.uberctrl"
+      "package": "de.uberctrl.client"
     },
     "web": {
       "favicon": "./assets/favicon.png",
