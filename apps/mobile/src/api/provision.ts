@@ -22,7 +22,6 @@ export const CONNECT_PORT = 8400;
  * path. A browser has to be able to reach it before it knows anything else, so
  * it cannot be somewhere that depends on the user's own DNS.
  */
-export const CONNECT_PATH = 'connect';
 export const INSTALL_DIR = 'uberctrl';
 export const REPO_URL = 'https://github.com/conct/uberctrl.git';
 
@@ -270,16 +269,12 @@ export async function provision(options: ProvisionOptions): Promise<ProvisionRes
     (value) => value,
   );
 
-  // The broker is reachable at a fixed path on the default domain, whatever
-  // the agent ended up on. A browser needs it before it knows which Uberspace
-  // it is even talking to, so it cannot sit behind a domain the user may or
-  // may not have pointed here. Failure is not fatal: the agent works without
-  // it, and only the QR handoff is missing.
-  await sh(
-    'expose',
-    `uberspace web backend set /${CONNECT_PATH} --http --port ${CONNECT_PORT} --remove-prefix 2>&1 || true`,
-    '',
-  );
+  // No route for the broker here. install.sh already published one beside the
+  // web view, and that is the one that gets used: the browser derives the
+  // broker from its own origin, so it only ever asks the address that served
+  // the page. A second route on the default domain answered correctly and was
+  // never asked — two definitions of one thing, which is how a stray backend
+  // outlives whatever explained it.
 
   // --- 5. confirm it actually answers --------------------------------------
   const token = await step(

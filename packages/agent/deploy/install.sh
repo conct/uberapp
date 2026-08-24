@@ -218,6 +218,14 @@ if [ -d "$WEB_SOURCE" ]; then
   uberspace web domain add "$WEB_DOMAIN" >/dev/null 2>&1 || true
   uberspace web backend set "$WEB_DOMAIN/connect" --http --port "$CONNECT_PORT" --remove-prefix     >/dev/null 2>&1 || true
 
+  # Earlier setups also put the broker on a path of the default domain. Now
+  # that it is published here, beside the view that reaches for it, that one is
+  # a second definition of the same thing answering on the same port. Removed
+  # only once this one exists, so a host without a web view keeps what it has.
+  if uberspace web backend list 2>/dev/null | grep -q "^/connect "; then
+    uberspace web backend del /connect >/dev/null 2>&1 || true
+  fi
+
   mkdir -p "$WEB_ROOT"
   # --delete so a renamed bundle does not leave its predecessor behind; the
   # target is a directory this script created and owns.
