@@ -105,6 +105,48 @@ Postfächer, Weiterleitung, Catch-all, Sieve) · Datenbanken (anlegen, Tabellen,
 Dump/Import) · Backup (Snapshots, Vorschau, Wiederherstellung) · Ports (mit
 `ss`-Abgleich, ob überhaupt etwas lauscht) · Dateien · Cron · Diagnose.
 
+### Domains und Verkauf
+
+Zwei Funktionen schaltet der Agent nur frei, wenn auf dem Host die passende
+Datei liegt — beide in `~/.config/uberapp/`, beide mode 600, beide **nicht im
+Repo**:
+
+`inwx.json` schaltet **Domains und DNS** frei (Suche, Zone bearbeiten,
+registrieren, umziehen):
+
+```json
+{ "user": "…", "pass": "…", "sharedSecret": "BASE32…" }
+```
+
+`sharedSecret` nur, wenn beim Registrar die Zwei-Faktor-Anmeldung an ist. Ohne
+`"endpoint"` geht alles aufs **OT&E-Testsystem** — dort kostet ein Fehlgriff
+nichts. Erst `"endpoint": "https://api.domrobot.com/jsonrpc/"` kauft echt.
+
+`payments.json` schaltet zusätzlich den **Verkauf** frei (Kasse, Bestellungen):
+
+```json
+{
+  "successUrl": "https://…/danke",
+  "cancelUrl": "https://…/abgebrochen",
+  "margin": { "percent": 25, "minCents": 500 },
+  "stripe": { "secretKey": "sk_…", "webhookSecret": "whsec_…" },
+  "paypal": { "clientId": "…", "clientSecret": "…", "webhookId": "…" }
+}
+```
+
+Ein Anbieter genügt. Die Marge liegt bewusst hier und nicht in der App: der
+Verkaufspreis wird auf dem Host berechnet, die App darf ihn nur *anzeigen* und
+beim Bestellen behaupten, was sie angezeigt hat — stimmt das nicht mehr, lehnt
+der Agent ab. Ohne `margin` wird zum Einkaufspreis verkauft, und die App sagt
+das auch so.
+
+Die Webhooks hören auf `/webhooks/stripe` und `/webhooks/paypal`. Beide prüfen
+die Signatur über die **rohen** Bytes, bevor irgendetwas geparst wird. Fällt ein
+Webhook aus, holt ein Abgleich alle 15 Minuten nach, was liegen geblieben ist —
+er fragt beide Anbieter und den Registrar, was wirklich passiert ist. Zurückgezahlt
+wird nie automatisch: eine Bestellung landet auf "Rückzahlung offen" und wartet
+auf eine Entscheidung.
+
 ## Entwicklung
 
 ```bash
