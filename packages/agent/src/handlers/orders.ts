@@ -15,6 +15,7 @@ import { readAccount, withInwx } from '../inwx.js';
 import { readPayments } from '../payments/config.js';
 import { listOrders, loadOrder, newOrder, saveOrder, type Order } from '../payments/orders.js';
 import { createOrder as createPayPalOrder } from '../payments/paypal.js';
+import { quoteFor } from '../payments/pricing.js';
 import { createCheckoutSession } from '../payments/stripe.js';
 import { sweep } from '../payments/sweep.js';
 import { RpcError, type Handler } from '../rpc.js';
@@ -58,11 +59,11 @@ const create: Handler = async (params) => {
   const provider = requireEnum(p, 'provider', ['stripe', 'paypal'] as const);
   const handles = contacts(p);
 
-  const amountCents = Number(p.amountCents);
-  if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw RpcError.badRequest('Der Verkaufspreis fehlt oder ist keine ganze Zahl in Cent.');
-  }
-  const currency = requireString(p, 'currency', { maxLength: 3 }).trim().toUpperCase();
+  // Deliberately not taken from the client. The app is software on somebody's
+  // phone talking to an agent over a socket; a price it sends is a price it
+  // chose. What it may send is the price it last showed somebody, and that is
+  // treated as a claim to be checked below, not as the amount to charge.
+  const expected = Number.isInteger(Number(p.amountCents)) ? Number(p.amountCents) : null;
   const email = typeof p.email === 'string' ? p.email.trim() : null;
   const authCode = typeof p.authCode === 'string' ? p.authCode.trim() : null;
   if (action === 'transfer' && !authCode) {
@@ -91,7 +92,7 @@ const create: Handler = async (params) => {
     const price = quoted.resData?.price?.[0];
     return {
       cents: toCents(action === 'transfer' ? price?.transferPrice : price?.createPrice),
-      currency: typeof price?.currency === 'string' ? price.currency : currency,
+      currency: typeof price?.currency === 'string' ? price.currency.toUpperCase() : 'EUR',
     };
   });
 
@@ -101,12 +102,26 @@ const create: Handler = async (params) => {
     );
   }
 
+  // The selling price, from the registrar's number and the margin configured
+  // on this host. This is the only place it is decided.
+  const quote = quoteFor(cost.cents, cost.currency, payments.margin);
+
+  // If the client told us what it showed somebody, it has to still be true.
+  // The case this catches is real: a price was on screen, the registrar moved
+  // it, and somebody would otherwise be charged an amount they never saw.
+  if (expected !== null && expected !== quote.amountCents) {
+    throw RpcError.badRequest(
+      `Der Preis hat sich geändert: angezeigt waren ${(expected / 100).toFixed(2)}, ` +
+        `aktuell sind es ${(quote.amountCents / 100).toFixed(2)} ${quote.currency}.`,
+    );
+  }
+
   // 2. Write it down before anyone can pay for it.
   let order = newOrder({
     domain,
     action,
-    amountCents,
-    currency,
+    amountCents: quote.amountCents,
+    currency: quote.currency,
     registrarCostCents: cost.cents,
     registrarCurrency: cost.currency,
     provider,
@@ -123,16 +138,16 @@ const create: Handler = async (params) => {
     const checkout =
       provider === 'paypal'
         ? await createPayPalOrder(payments.paypal!, {
-            amountCents,
-            currency,
+            amountCents: quote.amountCents,
+            currency: quote.currency,
             description,
             orderId: order.id,
             returnUrl: payments.successUrl,
             cancelUrl: payments.cancelUrl,
           }).then((created) => ({ id: created.id, url: created.approveUrl }))
         : await createCheckoutSession(payments.stripe!, {
-            amountCents,
-            currency,
+            amountCents: quote.amountCents,
+            currency: quote.currency,
             description,
             orderId: order.id,
             successUrl: payments.successUrl,
@@ -150,6 +165,50 @@ const create: Handler = async (params) => {
       `Die Kasse liess sich nicht öffnen: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
+};
+
+/**
+ * What a name would cost, and what it would sell for.
+ *
+ * The screen that shows a price has to get it from here rather than work it
+ * out, for the same reason `create` recomputes it: the margin is the host's
+ * business and lives nowhere else. Both numbers are returned because whoever
+ * is holding this phone is the seller, and a seller may see their own margin.
+ */
+const quote: Handler = async (params) => {
+  const p = asObject(params);
+  const domain = requireString(p, 'domain', { maxLength: 253 }).trim().toLowerCase();
+  const action = requireEnum(p, 'action', ['register', 'transfer'] as const);
+
+  const payments = await readPayments();
+  const account = await readAccount();
+  if (!account) throw RpcError.badRequest('Auf diesem Host ist kein Registrar-Konto hinterlegt.');
+
+  const tld = domain.split('.').slice(1).join('.');
+  const cost = await withInwx(account, async (session) => {
+    const quoted = await session.call<{ price?: Record<string, unknown>[] }>('domain.getPrices', {
+      tld: [tld],
+    });
+    const price = quoted.resData?.price?.[0];
+    return {
+      cents: toCents(action === 'transfer' ? price?.transferPrice : price?.createPrice),
+      renewal: toCents(price?.renewalPrice),
+      currency: typeof price?.currency === 'string' ? price.currency.toUpperCase() : 'EUR',
+    };
+  });
+
+  if (cost.cents === null) {
+    throw RpcError.badRequest(`Der Registrar nennt für "${tld}" keinen Preis.`);
+  }
+
+  return {
+    quote: {
+      ...quoteFor(cost.cents, cost.currency, payments?.margin),
+      renewalCents: cost.renewal,
+      domain,
+      action,
+    },
+  };
 };
 
 const list: Handler = async () => ({ orders: (await listOrders()).map(forClient) });
@@ -178,6 +237,7 @@ const runSweep: Handler = async () => {
 
 export const orderHandlers: Record<string, Handler> = {
   'orders.create': create,
+  'orders.quote': quote,
   'orders.sweep': runSweep,
   'orders.list': list,
   'orders.get': get,

@@ -34,6 +34,7 @@ import { formatBytes, useTheme } from '../../src/ui/theme';
 export default function OverviewScreen() {
   const theme = useTheme();
   const connection = useConnection();
+  const capabilities = connection.session?.capabilities ?? [];
 
   const info = useQuery<SystemInfo>('system.info');
   const quota = useQuery<QuotaInfo>('system.quota');
@@ -133,6 +134,21 @@ export default function OverviewScreen() {
         <Link href="/databases" asChild>
           <Button label="Datenbanken" onPress={() => {}} />
         </Link>
+        {/*
+          Domains only appear once the host has a registrar to talk to. On a
+          plain Uberspace there is none, and a button leading to a screen that
+          can only apologise is worse than no button.
+        */}
+        {capabilities.includes('domains') ? (
+          <Link href="/domains" asChild>
+            <Button label="Domains & DNS" onPress={() => {}} />
+          </Link>
+        ) : null}
+        {capabilities.includes('payments') ? (
+          <Link href="/orders" asChild>
+            <Button label="Bestellungen" onPress={() => {}} />
+          </Link>
+        ) : null}
         <Link href="/backup" asChild>
           <Button label="Backup & Wiederherstellung" onPress={() => {}} />
         </Link>

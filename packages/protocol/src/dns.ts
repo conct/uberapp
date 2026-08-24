@@ -57,7 +57,15 @@ export interface DnsRecord {
   priority: number | null;
 }
 
-export interface DomainInfo {
+/**
+ * A domain held at the registrar.
+ *
+ * Not to be confused with the DomainInfo next door, which is a domain pointed
+ * at this Uberspace web server. The two are different things that happen to
+ * share a word: one is owned, the other is served, and a name can be either
+ * without being the other.
+ */
+export interface RegisteredDomain {
   domain: string;
   /** ISO date, or null when the registrar did not say. */
   expiresAt: string | null;

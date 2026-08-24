@@ -96,6 +96,10 @@ export default function RootLayout() {
         <Stack.Screen name="deploy" options={{ title: 'Dienst anlegen' }} />
         <Stack.Screen name="backup" options={{ title: 'Backup' }} />
         <Stack.Screen name="databases" options={{ title: 'Datenbanken' }} />
+        <Stack.Screen name="domains" options={{ title: 'Domains' }} />
+        <Stack.Screen name="dns/[domain]" options={{ title: 'DNS' }} />
+        <Stack.Screen name="order" options={{ title: 'Bestellung' }} />
+        <Stack.Screen name="orders" options={{ title: 'Bestellungen' }} />
         <Stack.Screen name="mail-rules" options={{ title: 'Regeln & Filter' }} />
         <Stack.Screen name="web-extras" options={{ title: 'Web-Details' }} />
         <Stack.Screen name="diagnostics" options={{ title: 'Diagnose' }} />

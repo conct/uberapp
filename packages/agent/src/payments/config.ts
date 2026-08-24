@@ -26,7 +26,28 @@ export interface PayPalConfig {
   live?: boolean;
 }
 
+/**
+ * What is added to the registrar's price to arrive at the selling price.
+ *
+ * This is a resale, so there has to be a number here, and it has to live on
+ * the host. A margin the client sends is not a margin, it is a suggestion —
+ * and the client in this case is an app anybody can point at their own agent.
+ *
+ * Absent means sell at cost, which is a legitimate setup (somebody buying
+ * domains for themselves through the same screens) and is what the app then
+ * shows. It is never a hidden markup.
+ */
+export interface MarginConfig {
+  /** Added as a percentage of the registrar price. */
+  percent?: number;
+  /** Added on top of that, in cents. */
+  fixedCents?: number;
+  /** The selling price never falls below this. */
+  minCents?: number;
+}
+
 export interface PaymentsConfig {
+  margin?: MarginConfig;
   stripe?: StripeConfig;
   paypal?: PayPalConfig;
   /**
@@ -83,6 +104,7 @@ export async function readPayments(): Promise<PaymentsConfig | null> {
     return {
       successUrl: parsed.successUrl,
       cancelUrl: parsed.cancelUrl,
+      ...(parsed.margin && typeof parsed.margin === 'object' ? { margin: parsed.margin } : {}),
       ...(stripe ? { stripe } : {}),
       ...(paypal ? { paypal } : {}),
     };

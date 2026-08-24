@@ -19,32 +19,24 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
-/**
- * The states an order passes through, and the only moves allowed between them.
- *
- * Written as data rather than as ifs scattered through the handlers, because
- * the illegal moves are the interesting ones: registering something that was
- * never paid for, or marking as paid an order that was already refunded. A
- * table can be read, and tested, in one place.
- */
-export const ORDER_STATES = [
-  /** Created, checkout not finished. Most abandoned orders die here. */
-  'awaiting_payment',
-  /** The provider says the money is there. Nothing has been bought yet. */
-  'paid',
-  /** The registrar call is in flight. Crash here and the sweep must resolve it. */
-  'registering',
-  /** Done: paid, and the domain belongs to the account. */
-  'completed',
-  /** Paid, but the registrar refused. Somebody is owed their money back. */
-  'refund_due',
-  /** Money returned, whether by us or by the customer's bank. */
-  'refunded',
-  /** Never paid, and no longer worth waiting for. */
-  'cancelled',
-] as const;
+import {
+  ORDER_STATES,
+  type OrderRecord,
+  type OrderState,
+  type PaymentProvider,
+} from '@uberapp/protocol';
 
-export type OrderState = (typeof ORDER_STATES)[number];
+/**
+ * The states, and the only moves allowed between them.
+ *
+ * The list of states is the protocol's, because the app renders them too. The
+ * table below is not: it is the rule about what may follow what, and it lives
+ * next to the code that moves orders. Written as data rather than as ifs
+ * scattered through the handlers, because the illegal moves are the
+ * interesting ones — registering something that was never paid for, or marking
+ * as paid an order that was already refunded. A table can be read, and tested,
+ * in one place.
+ */
 
 const ALLOWED: Record<OrderState, readonly OrderState[]> = {
   awaiting_payment: ['paid', 'cancelled'],
@@ -71,44 +63,19 @@ export class OrderStateError extends Error {
   }
 }
 
-export type PaymentProvider = 'stripe' | 'paypal';
-
-export interface Order {
-  id: string;
-  state: OrderState;
-  /** What was sold. */
-  domain: string;
-  action: 'register' | 'transfer';
-  /** What the customer agreed to pay, in the smallest unit — never a float. */
-  amountCents: number;
-  currency: string;
-  /**
-   * What the registrar wanted when this order was taken.
-   *
-   * A second number because this is a resale: the customer pays one price and
-   * the registrar charges another, and the difference is the margin. Recording
-   * it at order time is what turns a price rise between the order and the
-   * registration into something noticed rather than absorbed — fulfilment
-   * passes it as the price it expects, and the registrar refuses if it moved.
-   */
-  registrarCostCents: number;
-  registrarCurrency: string;
-  provider: PaymentProvider;
-  /** The provider's own id: a Checkout Session or a PayPal order. */
-  reference: string | null;
-  /** Who bought it, as far as we know. */
-  email: string | null;
-  /** Only set for a transfer; needed once, at fulfilment. */
+/**
+ * The order as the host keeps it: everything the client sees, plus the one
+ * thing it must not. The auth code is the secret that moves a domain between
+ * registrars, it is needed exactly once at fulfilment, and it is stripped
+ * before an order is handed out.
+ */
+export interface Order extends OrderRecord {
   authCode: string | null;
-  /** The registrar's contact handles this order will use. */
-  contacts: Record<string, number>;
-  /** Set once the registrar has confirmed. */
-  registeredAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  /** Everything that happened, appended, never rewritten. */
-  history: { at: string; state: OrderState; note?: string }[];
 }
+
+/** Re-exported so nothing importing an order also has to import the protocol. */
+export { ORDER_STATES };
+export type { OrderRecord, OrderState, PaymentProvider };
 
 export function ordersDir(): string {
   return join(homedir(), '.config', 'uberapp', 'orders');

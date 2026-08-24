@@ -229,6 +229,9 @@ export const METHODS = [
   // Taking an order and looking at one. Nothing here can mark an order paid:
   // that comes from the provider, signature-verified, and from nowhere else.
   'orders.create',
+  // What a name costs and what it sells for. The margin lives on the host,
+  // so the price is asked for rather than worked out here.
+  'orders.quote',
   'orders.list',
   'orders.get',
   // Reconciliation, not a decision: it asks the providers and the registrar
@@ -1065,3 +1068,10 @@ export * from './sshkey.js';
 
 // Domains and DNS records, in the app's vocabulary rather than a registrar's.
 export * from './dns.js';
+
+/**
+ * Orders. The state machine lives in the agent; the vocabulary lives here,
+ * because the app renders a list of these and must not keep its own copy of
+ * what the states are called.
+ */
+export * from './orders.js';

@@ -9,7 +9,8 @@
  * if the registrar quotes a different one — and both take a dry run that
  * validates the whole request without buying. See the section further down.
  *
- * The shapes the app receives are this project's own (DnsRecord, DomainInfo),
+ * The shapes the app receives are this project's own (DnsRecord,
+ * RegisteredDomain),
  * not the registrar's. INWX answers with `TTL` in capitals on the way out and
  * expects `ttl` on the way in, among other asymmetries; translating once here
  * keeps that out of every screen.
@@ -19,7 +20,7 @@ import {
   dnsRecordProblem,
   type DnsRecord,
   type DomainAvailability,
-  type DomainInfo,
+  type RegisteredDomain,
   type DomainPrice,
 } from '@uberapp/protocol';
 
@@ -84,7 +85,7 @@ const list: Handler = async () => {
       const answer = await session.call<{ domain?: Record<string, unknown>[] }>('domain.list', {
         pagelimit: 1000,
       });
-      const domains: DomainInfo[] = (answer.resData?.domain ?? []).map((raw) => ({
+      const domains: RegisteredDomain[] = (answer.resData?.domain ?? []).map((raw) => ({
         domain: text(raw.domain),
         expiresAt: raw.exDate ? text(raw.exDate) : null,
         status: text(raw.status),
