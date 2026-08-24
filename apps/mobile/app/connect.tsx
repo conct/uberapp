@@ -107,7 +107,7 @@ export default function ConnectScreen() {
       setProbe(
         body.agent
           ? `Agent v${body.agent} erreichbar (Protokoll v${body.protocol}).`
-          : 'Antwort erhalten, aber es meldet sich kein Uberapp-Agent.',
+          : 'Antwort erhalten, aber es meldet sich kein uberCTRL-Agent.',
       );
     } catch (err) {
       setProbe(`Nicht erreichbar: ${(err as Error).message}`);
@@ -248,7 +248,7 @@ export default function ConnectScreen() {
             label="Adresse des Agenten"
             value={url}
             onChangeText={setUrl}
-            placeholder="uberapp.deine-domain.de"
+            placeholder="uberctrl.deine-domain.de"
             keyboardType="url"
             error={urlError}
             hint="https:// wird automatisch zu wss://"
@@ -257,7 +257,7 @@ export default function ConnectScreen() {
             label="Token"
             value={token}
             onChangeText={setToken}
-            placeholder="aus ~/.config/uberapp/token"
+            placeholder="aus ~/.config/uberctrl/token"
             secureTextEntry
             error={tokenError}
           />

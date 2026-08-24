@@ -144,7 +144,7 @@ export default function SetupSshScreen() {
     let keyProblem: string | null = null;
     if (mode === 'password' && canStoreKeys && !storedKey) {
       try {
-        generated = generateKey(`uberapp@${effectiveUser}`);
+        generated = generateKey(`uberctrl@${effectiveUser}`);
       } catch (err) {
         // Swallowed silently once, and the step then reported "skipped" — the
         // same word it uses when there was genuinely nothing to do. The setup
@@ -295,9 +295,9 @@ export default function SetupSshScreen() {
                 label="Eigene Domain (optional)"
                 value={domain}
                 onChangeText={setDomain}
-                placeholder="uberapp.deine-domain.de"
+                placeholder="uberctrl.deine-domain.de"
                 keyboardType="url"
-                hint="Leer lassen: der Agent landet auf <benutzer>.uber.space/uberapp, das braucht kein DNS."
+                hint="Leer lassen: der Agent landet auf <benutzer>.uber.space/uberctrl, das braucht kein DNS."
               />
             </Card>
           </>

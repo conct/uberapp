@@ -17,8 +17,8 @@
 
 import { lstat, readdir, stat } from 'node:fs/promises';
 import { posix } from 'node:path';
-import type { DumpInfo, FileEntry, SnapshotInfo, SnapshotKind } from '@uberapp/protocol';
-import { isOwnDatabase, isValidSnapshot } from '@uberapp/protocol';
+import type { DumpInfo, FileEntry, SnapshotInfo, SnapshotKind } from '@uberctrl/protocol';
+import { isOwnDatabase, isValidSnapshot } from '@uberctrl/protocol';
 import type { AgentConfig } from '../config.js';
 import { runStream } from '../exec.js';
 import { RpcError, type CallContext, type Handler } from '../rpc.js';

@@ -1,5 +1,5 @@
 /**
- * Remove Uberapp from the host, from the host.
+ * Remove uberCTRL from the host, from the host.
  *
  * The counterpart to install.sh, and it undoes exactly what that script and
  * the phone-driven setup created — nothing else. An account's own services,
@@ -8,10 +8,10 @@
  * itself writes, and the caller supplies nothing at all.
  *
  * What gets removed:
- *   - the uberapp-connect and uberapp-agent services, and their .ini files
- *   - the web backends for /uberapp and uberapp.<user>.uber.space/connect
+ *   - the uberctrl-connect and uberctrl-agent services, and their .ini files
+ *   - the web backends for /uberctrl and uberctrl.<user>.uber.space/connect
  *   - that subdomain and its DocumentRoot
- *   - the token in ~/.config/uberapp
+ *   - the token in ~/.config/uberctrl
  *   - the checkout the agent runs from
  *
  * As with a self-update, the ending is inherent: the last two steps stop the
@@ -41,8 +41,8 @@ const REPO_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '.
  */
 const REMOVAL_TAIL = [
   'sleep 2',
-  'supervisorctl stop uberapp-agent',
-  'supervisorctl remove uberapp-agent',
+  'supervisorctl stop uberctrl-agent',
+  'supervisorctl remove uberctrl-agent',
   'rm -f "$2"',
   'supervisorctl reread',
   'supervisorctl update',
@@ -59,9 +59,9 @@ function scheduleRemoval(repoDir: string, serviceFile: string): void {
 
 const uninstall: Handler = async (_params, ctx: CallContext) => {
   const { home, user } = ctx.config;
-  const webDomain = `uberapp.${user}.uber.space`;
-  const agentService = join(home, 'etc', 'services.d', 'uberapp-agent.ini');
-  const connectService = join(home, 'etc', 'services.d', 'uberapp-connect.ini');
+  const webDomain = `uberctrl.${user}.uber.space`;
+  const agentService = join(home, 'etc', 'services.d', 'uberctrl-agent.ini');
+  const connectService = join(home, 'etc', 'services.d', 'uberctrl-connect.ini');
 
   /** Report every step, and let none of them stop the removal. */
   const step = async (label: string, work: () => Promise<string>) => {
@@ -71,7 +71,7 @@ const uninstall: Handler = async (_params, ctx: CallContext) => {
       if (detail) ctx.emit('stdout', `${detail}\n`);
     } catch (err) {
       // A piece that was already gone, or never existed, is a step with
-      // nothing to do — not a reason to leave the rest of Uberapp behind.
+      // nothing to do — not a reason to leave the rest of uberCTRL behind.
       ctx.emit('stderr', `skipped: ${String(err)}\n`);
     }
   };
@@ -81,8 +81,8 @@ const uninstall: Handler = async (_params, ctx: CallContext) => {
     return (result.stdout + result.stderr).trim();
   };
 
-  await step('Removing the /uberapp backend', () =>
-    cmd('uberspace', ['web', 'backend', 'del', '/uberapp']),
+  await step('Removing the /uberctrl backend', () =>
+    cmd('uberspace', ['web', 'backend', 'del', '/uberctrl']),
   );
   await step('Removing the broker backend', () =>
     cmd('uberspace', ['web', 'backend', 'del', `${webDomain}/connect`]),
@@ -96,15 +96,15 @@ const uninstall: Handler = async (_params, ctx: CallContext) => {
     return root;
   });
 
-  await step('Stopping the broker', () => cmd('supervisorctl', ['stop', 'uberapp-connect']));
-  await step('Removing the broker', () => cmd('supervisorctl', ['remove', 'uberapp-connect']));
+  await step('Stopping the broker', () => cmd('supervisorctl', ['stop', 'uberctrl-connect']));
+  await step('Removing the broker', () => cmd('supervisorctl', ['remove', 'uberctrl-connect']));
   await step('Deleting the broker service file', async () => {
     await rm(connectService, { force: true });
     return connectService;
   });
 
   await step('Deleting the token', async () => {
-    const tokenDir = join(home, '.config', 'uberapp');
+    const tokenDir = join(home, '.config', 'uberctrl');
     await rm(tokenDir, { recursive: true, force: true });
     return tokenDir;
   });

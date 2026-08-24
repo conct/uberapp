@@ -2,7 +2,7 @@
  * The payment provider credentials, and the switch that turns selling on.
  *
  * Same arrangement as the registrar account next to it: a file in
- * ~/.config/uberapp, absent on every host that does not sell anything, and its
+ * ~/.config/uberctrl, absent on every host that does not sell anything, and its
  * absence is what keeps the `payments` capability — and therefore every screen
  * behind it — out of a build that has no business with money.
  *
@@ -60,7 +60,7 @@ export interface PaymentsConfig {
 }
 
 export function paymentsPath(): string {
-  return join(homedir(), '.config', 'uberapp', 'payments.json');
+  return join(homedir(), '.config', 'uberctrl', 'payments.json');
 }
 
 /**

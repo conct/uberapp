@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Uberapp",
-    "slug": "uberapp",
+    "name": "uberCTRL",
+    "slug": "uberctrl",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "de.uberapp.client"
+      "bundleIdentifier": "space.feif.uberctrl"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +18,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "de.uberapp.client"
+      "package": "space.feif.uberctrl"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -44,7 +44,7 @@
       "./plugins/withCmakeVersion",
       "./plugins/withDeviceAbi"
     ],
-    "scheme": "uberapp",
+    "scheme": "uberctrl",
     "experiments": {
       "typedRoutes": true
     }

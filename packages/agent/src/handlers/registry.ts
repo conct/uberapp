@@ -8,7 +8,7 @@
  * test on the way there.
  */
 
-import { METHODS } from '@uberapp/protocol';
+import { METHODS } from '@uberctrl/protocol';
 import type { Handler } from '../rpc.js';
 import { authHandlers } from './auth.js';
 import { backupHandlers } from './backup.js';

@@ -9,7 +9,7 @@
  *   GET  /pair/<slot>   the browser collects it, once
  *
  * The payload is sealed with a key that only ever existed inside a QR code on
- * the browser's own screen (see @uberapp/protocol/handoff). This process
+ * the browser's own screen (see @uberctrl/protocol/handoff). This process
  * cannot read what it is holding, and does not try: nothing here parses,
  * inspects or logs a payload. A slot lives about two minutes, survives exactly
  * one read, and is never overwritten.
@@ -155,7 +155,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
 
 server.listen(PORT, () => {
   // The only thing ever logged. Payloads and slot ids are not.
-  process.stdout.write(`uberapp-connect listening on ${PORT}\n`);
+  process.stdout.write(`uberctrl-connect listening on ${PORT}\n`);
 });
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {

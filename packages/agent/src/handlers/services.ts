@@ -7,7 +7,7 @@
 
 import { access, readFile, writeFile, unlink, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { ServiceInfo, ServiceState } from '@uberapp/protocol';
+import type { ServiceInfo, ServiceState } from '@uberctrl/protocol';
 import { run, runStream } from '../exec.js';
 import { parseBackends } from './web.js';
 import { RpcError, type CallContext, type Handler } from '../rpc.js';
@@ -236,7 +236,7 @@ export function isNothingToDo(output: string): boolean {
  * So only the three forms that actually say "port" are read.
  */
 /** Written by the create flow, and the only place that is not a guess. */
-const PORT_MARKER = /^;\s*uberapp-port\s*=\s*(\d{1,5})\s*$/im;
+const PORT_MARKER = /^;\s*uberctrl-port\s*=\s*(\d{1,5})\s*$/im;
 
 const PORT_PATTERNS: readonly RegExp[] = [
   // environment=PORT="8080", which is where the create wizard puts it

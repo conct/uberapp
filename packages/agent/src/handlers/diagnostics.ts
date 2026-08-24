@@ -7,8 +7,8 @@
  * deleted-but-open files, and the 1.5 GB per-account memory ceiling.
  */
 
-import type { DeletedFile, DiskUsageEntry, MemoryUsage } from '@uberapp/protocol';
-import { MEMORY_LIMIT_BYTES } from '@uberapp/protocol';
+import type { DeletedFile, DiskUsageEntry, MemoryUsage } from '@uberctrl/protocol';
+import { MEMORY_LIMIT_BYTES } from '@uberctrl/protocol';
 import type { AgentConfig } from '../config.js';
 import { run } from '../exec.js';
 import { RpcError, type Handler } from '../rpc.js';

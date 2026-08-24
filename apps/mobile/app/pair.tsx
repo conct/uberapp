@@ -13,7 +13,7 @@ import {
   DEFAULT_TOKEN_TTL_SECONDS,
   decodeHandoffRequest,
   type IssuedTokenInfo,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { depositHandoff, HandoffError } from '../src/api/handoff';
 import { loadCredentials } from '../src/api/storage';
@@ -239,7 +239,7 @@ function hostOf(url: string): string {
 /**
  * Where the browser view lives, when it can be worked out.
  *
- * install.sh publishes it at uberapp.<user>.uber.space — a subdomain of the
+ * install.sh publishes it at uberctrl.<user>.uber.space — a subdomain of the
  * default domain, which is the one address that always exists. A custom domain
  * for the agent tells us nothing about where the view was put, so that case
  * says so rather than inventing a link.
@@ -247,5 +247,5 @@ function hostOf(url: string): string {
 function browserHint(url: string | null): string {
   if (!url) return 'die Web-Ansicht';
   const host = hostOf(url);
-  return /\.uber\.space$/.test(host) ? `https://uberapp.${host}` : 'die Web-Ansicht';
+  return /\.uber\.space$/.test(host) ? `https://uberctrl.${host}` : 'die Web-Ansicht';
 }

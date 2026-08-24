@@ -136,7 +136,7 @@ export default function AccountsScreen() {
   };
 
   /**
-   * Removing a tile takes Uberapp off the host with it.
+   * Removing a tile takes uberCTRL off the host with it.
    *
    * It used to delete only the token here, which left both services running,
    * the backends routed and the checkout in place — with the one thing that
@@ -241,7 +241,7 @@ export default function AccountsScreen() {
 
         {accounts && accounts.length > 0 ? (
           <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
-            Zum Entfernen eine Kachel gedrückt halten. Das räumt Uberapp auch auf dem Host ab —
+            Zum Entfernen eine Kachel gedrückt halten. Das räumt uberCTRL auch auf dem Host ab —
             deine eigenen Dienste dort bleiben unangetastet.
           </Body>
         ) : null}
@@ -252,7 +252,7 @@ export default function AccountsScreen() {
         title="Zugang entfernen"
         message={
           toRemove
-            ? `Auf ${toRemove.label} werden die beiden Uberapp-Dienste, ihre Konfiguration, die Web-Backends, die Unterdomain, das Token und ~/uberapp gelöscht — und der Zugang danach von diesem Gerät. Deine eigenen Dienste bleiben.`
+            ? `Auf ${toRemove.label} werden die beiden uberCTRL-Dienste, ihre Konfiguration, die Web-Backends, die Unterdomain, das Token und ~/uberctrl gelöscht — und der Zugang danach von diesem Gerät. Deine eigenen Dienste bleiben.`
             : ''
         }
         confirmLabel="Weiter"

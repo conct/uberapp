@@ -6,7 +6,7 @@ import {
   isValidDnsRecordType,
   MAX_TTL,
   MIN_TTL,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 const valid = { domain: 'example.de', type: 'A', content: '192.0.2.1' };
 

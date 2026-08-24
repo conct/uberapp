@@ -18,7 +18,7 @@ import {
   parseCrontab,
   serializeCrontab,
   ServiceSpecError,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 import {
   isWildcardAddress,
   parseAssignedPort,
@@ -51,8 +51,8 @@ describe('portsIn', () => {
   // and deleting it removed the service but left a backend answering 502.
   it('reads the marker the create flow leaves', () => {
     const ini = [
-      '; created with uberapp',
-      '; uberapp-port=45678',
+      '; created with uberctrl',
+      '; uberctrl-port=45678',
       '[program:probe]',
       'command=/bin/sleep 600',
       'startsecs=30',
@@ -61,7 +61,7 @@ describe('portsIn', () => {
   });
 
   it('trusts the marker over anything else in the file', () => {
-    const ini = ['; uberapp-port=45678', 'command=node app.js --port 8080'].join('\n');
+    const ini = ['; uberctrl-port=45678', 'command=node app.js --port 8080'].join('\n');
     assert.deepEqual(portsIn(ini), [45678]);
   });
 
@@ -69,7 +69,7 @@ describe('portsIn', () => {
   // route to nothing and a false hit deletes somebody else's.
   it('finds the port the create wizard put in the environment', () => {
     const ini = [
-      '; created with uberapp',
+      '; created with uberctrl',
       '[program:probe]',
       'command=/bin/sleep 600',
       'startsecs=30',
@@ -913,7 +913,7 @@ describe('parseQuota on a host without the group', () => {
 describe('decodePairing', () => {
   const valid = {
     v: 1 as const,
-    url: 'wss://isabell.uber.space/uberapp',
+    url: 'wss://isabell.uber.space/uberctrl',
     token: 'a'.repeat(43),
     exp: 1_800_000_000_000,
   };

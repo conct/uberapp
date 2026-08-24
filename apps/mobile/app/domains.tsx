@@ -14,7 +14,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { formatPrice, type DomainAvailability, type RegisteredDomain } from '@uberapp/protocol';
+import { formatPrice, type DomainAvailability, type RegisteredDomain } from '@uberctrl/protocol';
 
 import { useConnection, useMutation, useQuery } from '../src/api/hooks';
 import {

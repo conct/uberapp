@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
-import type { FileContent, FileEntry } from '@uberapp/protocol';
+import type { FileContent, FileEntry } from '@uberctrl/protocol';
 
 import { useMutation, useQuery } from '../../src/api/hooks';
 import {

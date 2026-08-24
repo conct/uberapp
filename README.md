@@ -1,4 +1,4 @@
-# Uberapp
+# uberCTRL
 
 *[English](README.en.md)*
 
@@ -11,18 +11,18 @@ Uberspace läuft.
 ## Aufbau
 
 ```
- Handy ── wss:// ─▶ Agent :8399                <user>.uber.space/uberapp
+ Handy ── wss:// ─▶ Agent :8399                <user>.uber.space/uberctrl
    │                                           
-   └── scannt QR ─▶ Vermittler :8400           uberapp.<user>.uber.space/connect
+   └── scannt QR ─▶ Vermittler :8400           uberctrl.<user>.uber.space/connect
                           ▲
- Browser ── zeigt QR, holt Übergabe ──┘        uberapp.<user>.uber.space/
+ Browser ── zeigt QR, holt Übergabe ──┘        uberctrl.<user>.uber.space/
 ```
 
 | Adresse | Was | Warum dort |
 | --- | --- | --- |
-| `<user>.uber.space/uberapp` | Agent | Pfad auf der Standard-Domain: kein DNS, Zertifikat vorhanden |
-| `uberapp.<user>.uber.space/` | Web-Ansicht | eigene DocumentRoot — die bestehende Website bleibt unberührt |
-| `uberapp.<user>.uber.space/connect` | Vermittler | gleiche Herkunft wie die Ansicht, nichts zu konfigurieren |
+| `<user>.uber.space/uberctrl` | Agent | Pfad auf der Standard-Domain: kein DNS, Zertifikat vorhanden |
+| `uberctrl.<user>.uber.space/` | Web-Ansicht | eigene DocumentRoot — die bestehende Website bleibt unberührt |
+| `uberctrl.<user>.uber.space/connect` | Vermittler | gleiche Herkunft wie die Ansicht, nichts zu konfigurieren |
 
 Unterdomain statt Unterordner, weil der Web-Export seine Dateien ab `/`
 referenziert. Unterdomain der *Standard*-Domain, weil Uberspace dort jede
@@ -41,7 +41,7 @@ Bezeichnung auflöst.
 typisierte Parameter; der Agent bildet sie auf feste `argv`-Arrays ab. Ein
 Dienstname wie `evil; rm -rf ~` wird abgelehnt, nicht maskiert.
 
-**Token sind begrenzt.** Das Master-Token liegt in `~/.config/uberapp/token`
+**Token sind begrenzt.** Das Master-Token liegt in `~/.config/uberctrl/token`
 (Modus 600). Ein gekoppelter Browser bekommt ein eigenes, ablaufendes Token und
 darf damit keine weiteren ausgeben.
 
@@ -67,24 +67,24 @@ Braucht einen eigenen Dev-Build; Expo Go hat die nativen Module nicht.
 **Vom Rechner:**
 
 ```bash
-git clone https://github.com/conct/uberapp.git && cd uberapp
-npm install && npm run build:web -w @uberapp/mobile
+git clone https://github.com/conct/uberctrl.git && cd uberctrl
+npm install && npm run build:web -w @uberctrl/mobile
 npm run setup -- isabell@stardust.uberspace.de
 ```
 
 **Auf dem Host:**
 
 ```bash
-git clone https://github.com/conct/uberapp.git ~/uberapp
-bash ~/uberapp/packages/agent/deploy/install.sh
+git clone https://github.com/conct/uberctrl.git ~/uberctrl
+bash ~/uberctrl/packages/agent/deploy/install.sh
 ```
 
 `install.sh` baut alles, legt das Token an, installiert Agent und Vermittler,
 veröffentlicht die Web-Ansicht. Erneutes Ausführen behält ein vorhandenes Token.
 
 ```bash
-curl https://<user>.uber.space/uberapp/healthz
-curl https://uberapp.<user>.uber.space/connect/healthz
+curl https://<user>.uber.space/uberctrl/healthz
+curl https://uberctrl.<user>.uber.space/connect/healthz
 ```
 
 Mehrere Uberspaces: der Startbildschirm zeigt sie als Kacheln, jede mit eigenem
@@ -92,7 +92,7 @@ Token. Antippen wechselt, langes Drücken entfernt (nur auf dem Gerät).
 
 ## Browser koppeln
 
-`https://uberapp.<user>.uber.space` öffnen, in der App *Übersicht → Gerät
+`https://uberctrl.<user>.uber.space` öffnen, in der App *Übersicht → Gerät
 koppeln → Code im Browser scannen*. Der Browser verbindet sich selbst.
 
 Der Browser ist nur Ansicht — SSH braucht rohe TCP-Verbindungen, die er nicht hat.
@@ -108,7 +108,7 @@ Dump/Import) · Backup (Snapshots, Vorschau, Wiederherstellung) · Ports (mit
 ### Domains und Verkauf
 
 Zwei Funktionen schaltet der Agent nur frei, wenn auf dem Host die passende
-Datei liegt — beide in `~/.config/uberapp/`, beide mode 600, beide **nicht im
+Datei liegt — beide in `~/.config/uberctrl/`, beide mode 600, beide **nicht im
 Repo**:
 
 `inwx.json` schaltet **Domains und DNS** frei (Suche, Zone bearbeiten,
@@ -126,8 +126,8 @@ nichts. Erst `"endpoint": "https://api.domrobot.com/jsonrpc/"` kauft echt.
 
 ```json
 {
-  "successUrl": "https://…/danke",
-  "cancelUrl": "https://…/abgebrochen",
+  "successUrl": "https://uberctrl.DEIN-USER.uber.space/kasse/danke.html",
+  "cancelUrl": "https://uberctrl.DEIN-USER.uber.space/kasse/abgebrochen.html",
   "margin": { "percent": 25, "minCents": 500 },
   "stripe": { "secretKey": "sk_…", "webhookSecret": "whsec_…" },
   "paypal": { "clientId": "…", "clientSecret": "…", "webhookId": "…" }
@@ -146,6 +146,15 @@ Webhook aus, holt ein Abgleich alle 15 Minuten nach, was liegen geblieben ist �
 er fragt beide Anbieter und den Registrar, was wirklich passiert ist. Zurückgezahlt
 wird nie automatisch: eine Bestellung landet auf "Rückzahlung offen" und wartet
 auf eine Entscheidung.
+
+Die beiden Adressen oben musst du nicht selbst bauen: `install.sh` legt die
+Seiten unter `/kasse/` in der Web-Ansicht ab und nennt die fertigen Adressen am
+Ende der Einrichtung. Sie liegen als `packages/agent/deploy/checkout/*.html` im
+Repo und sind bewusst eigenständig — kein Skript, keine Schrift von auswärts,
+denn sie erscheinen genau in dem Moment, in dem jemand gerade bezahlt hat und
+die Verbindung unbekannt ist. **Bevor du echtes Geld annimmst:** in beiden
+Dateien die Fußzeile mit deinen Links zu Impressum, AGB und
+Widerrufsbelehrung füllen.
 
 ## Entwicklung
 
@@ -169,10 +178,10 @@ start` im Repo-Stamm scheitert mit `Unable to resolve "../../App"`.
   und ohne SDK-Pfad hängt der Build **ohne jede Ausgabe**
 
 Kaltbau: 1 h 22 (alle vier ABIs) bzw. 28 min mit
-`UBERAPP_ANDROID_ABIS=arm64-v8a` in `apps/mobile/.env`. Standardmäßig aus — so
+`UBERCTRL_ANDROID_ABIS=arm64-v8a` in `apps/mobile/.env`. Standardmäßig aus — so
 gebaut läuft es auf keinem üblichen Emulator.
 
-**Web-Ansicht:** `npm run build:web -w @uberapp/mobile`. Das Ergebnis liegt
+**Web-Ansicht:** `npm run build:web -w @uberctrl/mobile`. Das Ergebnis liegt
 versioniert in `apps/mobile/web-dist`, weil die Einrichtung aus der App nur holt,
 was im Repo liegt.
 

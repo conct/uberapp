@@ -1,5 +1,5 @@
 {
-  "name": "uberapp",
+  "name": "uberctrl",
   "private": true,
   "version": "0.1.0",
   "license": "MIT",
@@ -9,16 +9,16 @@
     "apps/*"
   ],
   "scripts": {
-    "build:protocol": "npm run build -w @uberapp/protocol",
-    "build:agent": "npm run build -w @uberapp/agent",
-    "build:connect": "npm run build -w @uberapp/connect",
+    "build:protocol": "npm run build -w @uberctrl/protocol",
+    "build:agent": "npm run build -w @uberctrl/agent",
+    "build:connect": "npm run build -w @uberctrl/connect",
     "build": "npm run build:protocol && npm run build:agent && npm run build:connect",
-    "dev:agent": "npm run dev -w @uberapp/agent",
-    "app": "npm run start -w @uberapp/mobile",
-    "typecheck": "tsc -b packages/protocol packages/agent packages/connect && npm run typecheck -w @uberapp/mobile",
-    "test": "npm run test -w @uberapp/agent && npm run test -w @uberapp/connect",
+    "dev:agent": "npm run dev -w @uberctrl/agent",
+    "app": "npm run start -w @uberctrl/mobile",
+    "typecheck": "tsc -b packages/protocol packages/agent packages/connect && npm run typecheck -w @uberctrl/mobile",
+    "test": "npm run test -w @uberctrl/agent && npm run test -w @uberctrl/connect",
     "setup": "node tools/setup.mjs",
-    "dev:connect": "npm run dev -w @uberapp/connect"
+    "dev:connect": "npm run dev -w @uberctrl/connect"
   },
   "engines": {
     "node": ">=20"

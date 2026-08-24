@@ -13,7 +13,7 @@
  * developer machine, using the system ssh is simply the right tool.
  *
  *   node tools/setup.mjs isabell@stardust.uberspace.de
- *   node tools/setup.mjs stardust --port 8399 --dir uberapp
+ *   node tools/setup.mjs stardust --port 8399 --dir uberctrl
  *
  * Safe to re-run: an existing token is kept and the service is just reloaded.
  */
@@ -37,7 +37,7 @@ const EXCLUDES = [
 ];
 
 function parseArgs(argv) {
-  const args = { host: null, port: '8399', dir: 'uberapp', path: 'uberapp', domain: null };
+  const args = { host: null, port: '8399', dir: 'uberctrl', path: 'uberctrl', domain: null };
 
   for (let i = 0; i < argv.length; i += 1) {
     const value = argv[i];
@@ -59,11 +59,11 @@ Usage: node tools/setup.mjs <ssh-host> [options]
 
 Options:
   --port <n>   Port the agent listens on inside the host (default 8399)
-  --dir <name> Directory in the home to install into (default uberapp)
+  --dir <name> Directory in the home to install into (default uberctrl)
   --domain <d> Route a whole domain to the agent. Needs a DNS record at your
                registrar first. Without this, a path on <user>.uber.space is
                used, which works immediately.
-  --path <p>   Path on the default domain (default uberapp)
+  --path <p>   Path on the default domain (default uberctrl)
 `;
 
 function say(message) {
@@ -243,7 +243,7 @@ async function main() {
     '-o',
     'BatchMode=yes',
     args.host,
-    `cd ~/${args.dir} && UBERAPP_PORT=${args.port} bash packages/agent/deploy/install.sh`,
+    `cd ~/${args.dir} && UBERCTRL_PORT=${args.port} bash packages/agent/deploy/install.sh`,
   ]);
 
   // --- 5. make it reachable ------------------------------------------------
@@ -279,9 +279,9 @@ async function main() {
   say('Checking that it answers');
   const health = await probe(args.host, target);
 
-  const token = (await remote(args.host, 'cat ~/.config/uberapp/token')).trim();
+  const token = (await remote(args.host, 'cat ~/.config/uberctrl/token')).trim();
   const status = (
-    await remote(args.host, 'supervisorctl status uberapp-agent 2>&1 || true')
+    await remote(args.host, 'supervisorctl status uberctrl-agent 2>&1 || true')
   ).trim();
 
   say('Done');

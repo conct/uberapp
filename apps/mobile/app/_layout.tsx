@@ -107,7 +107,7 @@ export default function RootLayout() {
         <Stack.Screen name="pair" options={{ title: 'Gerät koppeln' }} />
         <Stack.Screen name="setup-ssh" options={{ title: 'Einfache Einrichtung' }} />
         <Stack.Screen name="agent-update" options={{ title: 'Agent aktualisieren' }} />
-        <Stack.Screen name="agent-remove" options={{ title: 'Uberapp entfernen' }} />
+        <Stack.Screen name="agent-remove" options={{ title: 'uberCTRL entfernen' }} />
       </Stack>
     </SafeAreaProvider>
   );

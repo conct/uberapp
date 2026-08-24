@@ -16,7 +16,7 @@ import {
   type FileEntry,
   type MethodName,
   type SnapshotInfo,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { client, type StreamHandle } from '../src/api/client';
 import { describeError, useConnection, useQuery } from '../src/api/hooks';

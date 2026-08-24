@@ -2,7 +2,7 @@
  * The browser/phone handoff.
  *
  * These live here rather than in the protocol package because that is where
- * the test runner is; the code under test is `@uberapp/protocol/handoff`.
+ * the test runner is; the code under test is `@uberctrl/protocol/handoff`.
  *
  * Node's webcrypto stands in for both ends. That is the point of taking the
  * provider as an argument: the browser passes its own `crypto`, the phone
@@ -24,13 +24,13 @@ import {
   toBase64Url,
   type CryptoProvider,
   type HandoffPayload,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 const crypto = webcrypto as unknown as CryptoProvider;
 
 const payload: HandoffPayload = {
   v: 1,
-  url: 'wss://isabell.uber.space/uberapp',
+  url: 'wss://isabell.uber.space/uberctrl',
   token: 'a'.repeat(43),
   exp: 1_800_000_000_000,
   label: 'isabell.uber.space',
@@ -100,7 +100,7 @@ describe('the QR code the browser shows', () => {
   });
 
   it('is not confused with the token-carrying pairing code', () => {
-    const pairing = JSON.stringify({ v: 1, url: 'wss://host/uberapp', token: 'a'.repeat(43) });
+    const pairing = JSON.stringify({ v: 1, url: 'wss://host/uberctrl', token: 'a'.repeat(43) });
     assert.equal(decodeHandoffRequest(pairing), null);
   });
 });
@@ -158,7 +158,7 @@ describe('sealing', () => {
     const { key } = await newHandoffSecret(crypto);
 
     const bad = [
-      { ...payload, url: 'https://host/uberapp' }, // not a WebSocket address
+      { ...payload, url: 'https://host/uberctrl' }, // not a WebSocket address
       { ...payload, token: 'too-short' },
       { ...payload, v: 2 },
     ];

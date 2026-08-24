@@ -13,7 +13,7 @@ import {
   type DeletedFile,
   type DiskUsageEntry,
   type MemoryUsage,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { useMutation, useQuery } from '../src/api/hooks';
 import {

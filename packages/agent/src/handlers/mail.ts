@@ -7,7 +7,7 @@
  * agent allocates a pty and answers both prompts. See runInteractive().
  */
 
-import { failureReason, isValidEmail, MIN_MAILBOX_PASSWORD_LENGTH } from '@uberapp/protocol';
+import { failureReason, isValidEmail, MIN_MAILBOX_PASSWORD_LENGTH } from '@uberctrl/protocol';
 import {
   hasPtySupport,
   redact,

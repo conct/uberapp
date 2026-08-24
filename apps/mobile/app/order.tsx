@@ -22,7 +22,7 @@ import {
   type OrderQuote,
   type OrderRecord,
   type PaymentProvider,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { useConnection, useMutation, useQuery } from '../src/api/hooks';
 import {

@@ -10,7 +10,7 @@
  * success; how bytes reach the host is somebody else's problem.
  */
 
-import { failureReason } from '@uberapp/protocol';
+import { failureReason } from '@uberctrl/protocol';
 
 import type { SshCredentials, SshResult, SshRunner } from './ssh';
 
@@ -23,8 +23,8 @@ export const CONNECT_PORT = 8400;
  * it cannot be somewhere that depends on the user's own DNS.
  */
 export const CONNECT_PATH = 'connect';
-export const INSTALL_DIR = 'uberapp';
-export const REPO_URL = 'https://github.com/conct/uberapp.git';
+export const INSTALL_DIR = 'uberctrl';
+export const REPO_URL = 'https://github.com/conct/uberctrl.git';
 
 export type StepId = 'check' | 'key' | 'fetch' | 'install' | 'expose' | 'verify';
 export type StepState = 'pending' | 'running' | 'ok' | 'failed';
@@ -216,7 +216,7 @@ export async function provision(options: ProvisionOptions): Promise<ProvisionRes
   await step('install', async () => {
     const result = await runner.stream(
       credentials,
-      `cd ~/${INSTALL_DIR} && UBERAPP_PORT=${AGENT_PORT} bash packages/agent/deploy/install.sh`,
+      `cd ~/${INSTALL_DIR} && UBERCTRL_PORT=${AGENT_PORT} bash packages/agent/deploy/install.sh`,
       (chunk) => onOutput?.(chunk),
     );
     if (result.code !== 0) {
@@ -307,7 +307,7 @@ export async function provision(options: ProvisionOptions): Promise<ProvisionRes
         // which is the one thing that is definitely fine.
         const service = await sh(
           'verify',
-          'supervisorctl status uberapp-agent 2>&1 || true',
+          'supervisorctl status uberctrl-agent 2>&1 || true',
           '',
         );
         const stalled = /BACKOFF|FATAL|EXITED|spawn error/i.test(service.stdout);
@@ -326,7 +326,7 @@ export async function provision(options: ProvisionOptions): Promise<ProvisionRes
         );
       }
 
-      const read = await sh('verify', 'cat ~/.config/uberapp/token', 'Kein Token gefunden.');
+      const read = await sh('verify', 'cat ~/.config/uberctrl/token', 'Kein Token gefunden.');
       const value = read.stdout.trim();
       if (value.length < 24) {
         throw new ProvisionError('verify', 'Das Token auf dem Host sieht nicht brauchbar aus.');

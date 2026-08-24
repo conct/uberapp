@@ -16,13 +16,13 @@ import type {
   HeaderInfo,
   WebLogKind,
   WebLogStatus,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 import {
   ERRORPAGE_CODES,
   failureReason,
   isValidHeaderName,
   isValidHeaderValue,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 import { run, runOrThrow, runStream } from '../exec.js';
 import { RpcError, type CallContext, type Handler } from '../rpc.js';
 import {

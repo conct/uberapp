@@ -1,5 +1,5 @@
 /**
- * Uberapp agent — WebSocket server that runs on the Uberspace host.
+ * uberCTRL agent — WebSocket server that runs on the Uberspace host.
  *
  * Runs as a supervisord service and is exposed through a web backend, which
  * gives it the account's Let's Encrypt certificate for free. It must therefore
@@ -19,7 +19,7 @@ import {
   type ClientMessage,
   type MethodName,
   type ServerMessage,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 import { AGENT_VERSION, loadConfig, type AgentConfig } from './config.js';
 import { CommandError, hasPtySupport } from './exec.js';
 import { RpcError, type CallContext } from './rpc.js';
@@ -28,6 +28,7 @@ import { SNAPSHOT_ROOT } from './handlers/backup.js';
 import { runWatchPass, WATCH_POLL_MS } from './handlers/certs.js';
 import { hasMysqlCredentials, myCnfPath } from './handlers/db.js';
 import { readAccount } from './inwx.js';
+import { migrateLegacyConfig } from './migrate.js';
 import { readPayments } from './payments/config.js';
 import { startSweeping } from './payments/sweep.js';
 import { handleWebhooks } from './payments/webhook.js';
@@ -316,6 +317,13 @@ async function detectCapabilities(): Promise<Capability[]> {
 }
 
 async function main() {
+  // Before anything reads a path: a host installed under the old name keeps
+  // its token, its registrar credentials and its orders in a directory that
+  // is no longer where we look. Move it first, or this agent starts life
+  // looking like a fresh install with every device unpaired.
+  const moved = await migrateLegacyConfig();
+  if (moved) log('info', moved);
+
   const config = loadConfig();
   const capabilities = await detectCapabilities();
 
@@ -394,7 +402,7 @@ async function main() {
   }
 
   server.listen(config.port, config.bind, () => {
-    log('info', `uberapp agent ${AGENT_VERSION} listening on ${config.bind}:${config.port}`);
+    log('info', `uberctrl agent ${AGENT_VERSION} listening on ${config.bind}:${config.port}`);
     log('info', `user=${config.user} host=${config.host} capabilities=${capabilities.join(',')}`);
   });
 

@@ -1,4 +1,4 @@
-# Uberapp
+# uberCTRL
 
 *[Deutsch](README.md)*
 
@@ -11,18 +11,18 @@ Uberspace.
 ## Layout
 
 ```
- Phone ── wss:// ─▶ Agent :8399                <user>.uber.space/uberapp
+ Phone ── wss:// ─▶ Agent :8399                <user>.uber.space/uberctrl
    │
-   └── scans QR ──▶ Broker :8400               uberapp.<user>.uber.space/connect
+   └── scans QR ──▶ Broker :8400               uberctrl.<user>.uber.space/connect
                         ▲
- Browser ── shows QR, collects handoff ─┘      uberapp.<user>.uber.space/
+ Browser ── shows QR, collects handoff ─┘      uberctrl.<user>.uber.space/
 ```
 
 | Address | What | Why there |
 | --- | --- | --- |
-| `<user>.uber.space/uberapp` | agent | a path on the default domain: no DNS, certificate already there |
-| `uberapp.<user>.uber.space/` | web view | its own DocumentRoot — an existing site is untouched |
-| `uberapp.<user>.uber.space/connect` | broker | same origin as the view, nothing to configure |
+| `<user>.uber.space/uberctrl` | agent | a path on the default domain: no DNS, certificate already there |
+| `uberctrl.<user>.uber.space/` | web view | its own DocumentRoot — an existing site is untouched |
+| `uberctrl.<user>.uber.space/connect` | broker | same origin as the view, nothing to configure |
 
 A subdomain rather than a subdirectory, because the web export references its
 assets from `/`. A subdomain of the *default* domain, because Uberspace resolves
@@ -41,7 +41,7 @@ any label under it.
 parameters; the agent maps them onto fixed `argv` arrays. A service name like
 `evil; rm -rf ~` is rejected, not escaped.
 
-**Tokens are bounded.** The master token lives in `~/.config/uberapp/token`
+**Tokens are bounded.** The master token lives in `~/.config/uberctrl/token`
 (mode 600). A paired browser gets its own expiring token and cannot issue more.
 
 **The SSH password is discarded.** The simple setup needs it once and stores it
@@ -67,24 +67,24 @@ custom dev build; Expo Go does not ship the native modules.
 **From your machine:**
 
 ```bash
-git clone https://github.com/conct/uberapp.git && cd uberapp
-npm install && npm run build:web -w @uberapp/mobile
+git clone https://github.com/conct/uberctrl.git && cd uberctrl
+npm install && npm run build:web -w @uberctrl/mobile
 npm run setup -- isabell@stardust.uberspace.de
 ```
 
 **On the host:**
 
 ```bash
-git clone https://github.com/conct/uberapp.git ~/uberapp
-bash ~/uberapp/packages/agent/deploy/install.sh
+git clone https://github.com/conct/uberctrl.git ~/uberctrl
+bash ~/uberctrl/packages/agent/deploy/install.sh
 ```
 
 `install.sh` builds everything, creates the token, installs agent and broker,
 publishes the web view. Re-running keeps an existing token.
 
 ```bash
-curl https://<user>.uber.space/uberapp/healthz
-curl https://uberapp.<user>.uber.space/connect/healthz
+curl https://<user>.uber.space/uberctrl/healthz
+curl https://uberctrl.<user>.uber.space/connect/healthz
 ```
 
 Several Uberspaces: the start screen shows them as tiles, each with its own
@@ -92,7 +92,7 @@ token. Tap to switch, long-press to remove (on the device only).
 
 ## Pairing a browser
 
-Open `https://uberapp.<user>.uber.space`, then in the app *Übersicht → Gerät
+Open `https://uberctrl.<user>.uber.space`, then in the app *Übersicht → Gerät
 koppeln → Code im Browser scannen*. The browser connects by itself.
 
 The browser is a view only — SSH needs raw TCP, which it cannot open.
@@ -129,10 +129,10 @@ prerequisites:
   and without the SDK path the build hangs **with no output at all**
 
 Cold build: 1 h 22 for all four ABIs, 28 min with
-`UBERAPP_ANDROID_ABIS=arm64-v8a` in `apps/mobile/.env`. Off by default — built
+`UBERCTRL_ANDROID_ABIS=arm64-v8a` in `apps/mobile/.env`. Off by default — built
 that way it installs on no common emulator.
 
-**Web view:** `npm run build:web -w @uberapp/mobile`. The result is committed
+**Web view:** `npm run build:web -w @uberctrl/mobile`. The result is committed
 under `apps/mobile/web-dist`, because setup driven from the phone only fetches
 what is in the repository.
 

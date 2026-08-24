@@ -11,7 +11,7 @@ import type {
   QuotaInfo,
   ServiceInfo,
   SystemInfo,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { useConnection, useQuery } from '../../src/api/hooks';
 import {

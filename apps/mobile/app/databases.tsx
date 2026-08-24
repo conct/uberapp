@@ -15,7 +15,7 @@ import {
   type DatabaseInfo,
   type MethodName,
   type TableInfo,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { client, type StreamHandle } from '../src/api/client';
 import { describeError, useConnection, useMutation, useQuery } from '../src/api/hooks';

@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Link } from 'expo-router';
-import type { ServiceAction, ServiceInfo } from '@uberapp/protocol';
+import type { ServiceAction, ServiceInfo } from '@uberctrl/protocol';
 
 import { useMutation, useQuery } from '../../src/api/hooks';
 import {
@@ -49,7 +49,7 @@ interface DeleteResult {
  * ends the session mid-call and leaves SSH as the only way back. That belongs
  * in the confirmation, not in a refusal.
  */
-const OWN_SERVICES = ['uberapp-agent', 'uberapp-connect'];
+const OWN_SERVICES = ['uberctrl-agent', 'uberctrl-connect'];
 
 /** What each step of the removal did, in words rather than exit codes. */
 const STEP_LABEL: Record<string, string> = {

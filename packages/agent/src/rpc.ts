@@ -1,4 +1,4 @@
-import type { AuthInfo, ErrorCode } from '@uberapp/protocol';
+import type { AuthInfo, ErrorCode } from '@uberctrl/protocol';
 import type { AgentConfig } from './config.js';
 
 export class RpcError extends Error {

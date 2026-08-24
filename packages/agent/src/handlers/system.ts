@@ -3,7 +3,7 @@
  */
 
 import { loadavg, uptime as osUptime } from 'node:os';
-import type { ProcessInfo, QuotaInfo, SystemInfo, ToolVersion } from '@uberapp/protocol';
+import type { ProcessInfo, QuotaInfo, SystemInfo, ToolVersion } from '@uberctrl/protocol';
 import { AGENT_VERSION } from '../config.js';
 import { run } from '../exec.js';
 import { RpcError, type Handler } from '../rpc.js';

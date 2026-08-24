@@ -22,7 +22,7 @@ import {
   type DomainAvailability,
   type RegisteredDomain,
   type DomainPrice,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { readAccount, withInwx, InwxError } from '../inwx.js';
 import { RpcError, type Handler } from '../rpc.js';
@@ -34,7 +34,7 @@ async function account() {
   if (!found) {
     throw RpcError.badRequest(
       'No registrar account is configured on this host.',
-      'Put user and pass into ~/.config/uberapp/inwx.json (mode 600).',
+      'Put user and pass into ~/.config/uberctrl/inwx.json (mode 600).',
     );
   }
   return found;

@@ -16,8 +16,8 @@
 import { access, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, posix } from 'node:path';
-import type { DatabaseInfo, TableInfo } from '@uberapp/protocol';
-import { isOwnDatabase } from '@uberapp/protocol';
+import type { DatabaseInfo, TableInfo } from '@uberctrl/protocol';
+import { isOwnDatabase } from '@uberctrl/protocol';
 import { run, runPipe } from '../exec.js';
 import { RpcError, type CallContext, type Handler } from '../rpc.js';
 import { asObject, requireString } from '../validate.js';

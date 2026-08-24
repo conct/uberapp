@@ -13,7 +13,7 @@ import {
   MAX_FIREWALL_PORTS,
   type ListenerInfo,
   type PortInfo,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { useConnection, useMutation, useQuery } from '../src/api/hooks';
 import {

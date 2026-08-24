@@ -29,7 +29,7 @@ import { RpcError, type CallContext, type Handler } from '../rpc.js';
 /**
  * The repository this agent was built from.
  *
- * Derived from the module's own location rather than from $HOME/uberapp, so a
+ * Derived from the module's own location rather than from $HOME/uberctrl, so a
  * checkout somewhere else still updates itself instead of quietly updating a
  * different copy. Four levels up from either
  * <repo>/packages/agent/dist/handlers or <repo>/packages/agent/src/handlers.
@@ -83,7 +83,7 @@ const STEPS: ReadonlyArray<{ label: string; file: string; args: string[] }> = [
   {
     label: 'Installing dependencies',
     file: NPM,
-    args: ['install', '--include-workspace-root', '-w', '@uberapp/protocol', '-w', '@uberapp/agent'],
+    args: ['install', '--include-workspace-root', '-w', '@uberctrl/protocol', '-w', '@uberctrl/agent'],
   },
   { label: 'Building', file: NPM, args: ['run', 'build'] },
 ];
@@ -143,7 +143,7 @@ function runStep(
 function scheduleRestart(): void {
   const child = spawn(
     'sh',
-    ['-c', 'sleep 2; supervisorctl restart uberapp-agent uberapp-connect'],
+    ['-c', 'sleep 2; supervisorctl restart uberctrl-agent uberctrl-connect'],
     { detached: true, stdio: 'ignore', env: CHILD_ENV },
   );
   child.unref();

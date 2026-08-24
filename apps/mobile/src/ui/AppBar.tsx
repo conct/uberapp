@@ -72,7 +72,7 @@ export function AppBar({ title: given, onBack }: AppBarProps = {}) {
   const pathname = usePathname();
   const connection = useConnection();
 
-  const title = given ?? TITLES[pathname] ?? 'Uberapp';
+  const title = given ?? TITLES[pathname] ?? 'uberCTRL';
 
   return (
     <View

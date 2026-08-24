@@ -1,7 +1,7 @@
 /**
  * Talking to INWX, the registrar, from the host.
  *
- * The credentials live beside the master token in ~/.config/uberapp and never
+ * The credentials live beside the master token in ~/.config/uberctrl and never
  * leave the host — the same arrangement the MySQL credentials already have,
  * and for the same reason: the agent is the one process that already holds
  * secrets for this account, and putting a registrar login on every phone that
@@ -39,7 +39,7 @@ export interface InwxAccount {
 }
 
 export function accountPath(): string {
-  return join(homedir(), '.config', 'uberapp', 'inwx.json');
+  return join(homedir(), '.config', 'uberctrl', 'inwx.json');
 }
 
 /**

@@ -16,7 +16,7 @@
  *   - What the broker receives is ciphertext. It learns a slot id and a length.
  *
  * The browser side lives in the web build; both use the same encode/decode and
- * seal/open pair from @uberapp/protocol so neither can drift.
+ * seal/open pair from @uberctrl/protocol so neither can drift.
  */
 
 import {
@@ -24,7 +24,7 @@ import {
   type HandoffPayload,
   type HandoffRequest,
   type IssuedToken,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { client } from './client';
 import { getCryptoProvider, cryptoUnavailableReason } from './webcrypto';

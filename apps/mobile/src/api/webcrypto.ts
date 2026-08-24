@@ -2,7 +2,7 @@
  * WebCrypto, from wherever this build actually has it.
  *
  * The handoff seals a payload on the phone and unseals it in a browser, using
- * the same code on both sides (@uberapp/protocol/handoff). What differs is
+ * the same code on both sides (@uberctrl/protocol/handoff). What differs is
  * where the primitives come from:
  *
  *   browser   globalThis.crypto — always there on a secure origin
@@ -13,7 +13,7 @@
  */
 
 import { Platform } from 'react-native';
-import type { CryptoProvider } from '@uberapp/protocol';
+import type { CryptoProvider } from '@uberctrl/protocol';
 
 let cached: CryptoProvider | null | undefined;
 

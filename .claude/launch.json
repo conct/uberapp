@@ -2,13 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "uberapp-web",
+      "name": "uberctrl-web",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
         "web",
         "-w",
-        "@uberapp/mobile",
+        "@uberctrl/mobile",
         "--",
         "--port",
         "8090"

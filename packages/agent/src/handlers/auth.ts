@@ -10,7 +10,7 @@ import {
   DEFAULT_TOKEN_TTL_SECONDS,
   MAX_TOKEN_TTL_SECONDS,
   MIN_TOKEN_TTL_SECONDS,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 import { issueToken, listTokens, revokeToken } from '../tokens.js';
 import { RpcError, type CallContext, type Handler } from '../rpc.js';
 import { asObject, optionalNumber, optionalString, requireString } from '../validate.js';

@@ -1,10 +1,10 @@
 {
-  "name": "@uberapp/agent",
+  "name": "@uberctrl/agent",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
   "type": "module",
-  "description": "Uberapp agent: WebSocket control plane running on the Uberspace host",
+  "description": "uberCTRL agent: WebSocket control plane running on the Uberspace host",
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -b",
@@ -14,7 +14,7 @@
     "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
-    "@uberapp/protocol": "*",
+    "@uberctrl/protocol": "*",
     "ws": "^8.18.0"
   },
   "devDependencies": {

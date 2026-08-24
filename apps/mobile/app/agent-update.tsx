@@ -16,7 +16,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Link } from 'expo-router';
-import type { SystemInfo } from '@uberapp/protocol';
+import type { SystemInfo } from '@uberctrl/protocol';
 
 import { client, RpcCallError } from '../src/api/client';
 import { describeError, useConnection, useQuery } from '../src/api/hooks';

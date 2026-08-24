@@ -1,5 +1,5 @@
 /**
- * Remove Uberapp from an Uberspace.
+ * Remove uberCTRL from an Uberspace.
  *
  * The counterpart to the setup, and deliberately a screen rather than a
  * button: it undoes an installation on a real host, and the last thing it does
@@ -112,18 +112,18 @@ export default function AgentRemoveScreen() {
   return (
     <ScreenScroll>
       <Card>
-        <SectionTitle>Uberapp vom Host entfernen</SectionTitle>
+        <SectionTitle>uberCTRL vom Host entfernen</SectionTitle>
         <Body muted>
           Entfernt genau das, was die Einrichtung angelegt hat: die beiden Dienste samt
           .ini-Dateien, die Web-Backends, die Unterdomain mit ihrer Web-Ansicht, das Token und das
-          Verzeichnis <Body>~/uberapp</Body>.
+          Verzeichnis <Body>~/uberctrl</Body>.
         </Body>
         <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
           Deine eigenen Dienste, Domains und Dateien bleiben unangetastet — der Uberspace selbst
           natürlich auch. Rückgängig machen geht nur durch eine neue Einrichtung über SSH.
         </Body>
         <Button
-          label={running ? 'Läuft…' : 'Uberapp entfernen'}
+          label={running ? 'Läuft…' : 'uberCTRL entfernen'}
           variant="danger"
           onPress={() => setConfirmOpen(true)}
           disabled={running || done}
@@ -189,10 +189,10 @@ export default function AgentRemoveScreen() {
 
       <ConfirmDialog
         visible={confirmOpen}
-        title="Uberapp entfernen"
+        title="uberCTRL entfernen"
         message={
-          `Auf ${connection.session?.host ?? 'dem Host'} werden die beiden Uberapp-Dienste, ihre ` +
-          'Konfiguration, die Web-Backends, die Unterdomain, das Token und ~/uberapp gelöscht. ' +
+          `Auf ${connection.session?.host ?? 'dem Host'} werden die beiden uberCTRL-Dienste, ihre ` +
+          'Konfiguration, die Web-Backends, die Unterdomain, das Token und ~/uberctrl gelöscht. ' +
           'Deine eigenen Dienste bleiben. Das lässt sich von hier aus nicht zurücknehmen.'
         }
         confirmLabel="Entfernen"

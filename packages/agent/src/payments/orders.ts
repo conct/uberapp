@@ -8,7 +8,7 @@
  * registered but the payment later reversed, the customer closing the tab
  * halfway. A record that survives a restart is the only way to notice.
  *
- * Stored as one file per order under ~/.config/uberapp/orders. A database
+ * Stored as one file per order under ~/.config/uberctrl/orders. A database
  * would be the reflex, but the volume here is domains sold by one person, the
  * agent has no database, and a directory of JSON files can be read by a human
  * at three in the morning when something is stuck.
@@ -24,7 +24,7 @@ import {
   type OrderRecord,
   type OrderState,
   type PaymentProvider,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 /**
  * The states, and the only moves allowed between them.
@@ -78,7 +78,7 @@ export { ORDER_STATES };
 export type { OrderRecord, OrderState, PaymentProvider };
 
 export function ordersDir(): string {
-  return join(homedir(), '.config', 'uberapp', 'orders');
+  return join(homedir(), '.config', 'uberctrl', 'orders');
 }
 
 function orderPath(id: string): string {

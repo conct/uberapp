@@ -8,7 +8,7 @@
  *
  * The key is generated here and never leaves the page except as pixels. It is
  * not sent to the broker, which therefore holds bytes it cannot read; see
- * @uberapp/protocol/handoff for why that is the whole point.
+ * @uberctrl/protocol/handoff for why that is the whole point.
  *
  * The broker is assumed to sit on this page's own origin, because install.sh
  * publishes both from one subdomain. That means nothing to configure, and no
@@ -22,7 +22,7 @@ import {
   newHandoffSecret,
   openHandoff,
   type HandoffPayload,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { getCryptoProvider, cryptoUnavailableReason } from '../api/webcrypto';
 import { Body, Button, Card, ErrorBanner, InfoBanner, Loading, SectionTitle, spacing } from './components';

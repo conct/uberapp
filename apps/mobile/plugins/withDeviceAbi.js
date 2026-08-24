@@ -32,7 +32,7 @@
  * apps/mobile/.env file is the easy place, and it is gitignored, which is
  * exactly right for a machine-local setting:
  *
- *   UBERAPP_ANDROID_ABIS=arm64-v8a
+ *   UBERCTRL_ANDROID_ABIS=arm64-v8a
  *
  * (`adb shell getprop ro.product.cpu.abi` names the one your device wants.)
  *
@@ -53,7 +53,7 @@
 const { withGradleProperties } = require('expo/config-plugins');
 
 const KEY = 'reactNativeArchitectures';
-const ENV_VAR = 'UBERAPP_ANDROID_ABIS';
+const ENV_VAR = 'UBERCTRL_ANDROID_ABIS';
 
 /** Reject anything that is not a plain ABI list, rather than write it out. */
 const VALID = /^[a-z0-9-]+(,[a-z0-9-]+)*$/;

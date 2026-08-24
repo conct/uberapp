@@ -1,11 +1,11 @@
 {
-  "name": "@uberapp/mobile",
+  "name": "@uberctrl/mobile",
   "version": "1.0.0",
   "license": "MIT",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
-    "@uberapp/protocol": "*",
+    "@uberctrl/protocol": "*",
     "assert": "^2.1.0",
     "buffer": "^5.7.1",
     "events": "^3.3.0",

@@ -7,14 +7,14 @@
  * ssh2 in memory, never written anywhere else. Every later run — a repair, a
  * re-install, the same host added again — then needs nothing typed.
  *
- * The encoding lives in @uberapp/protocol, where it is tested. This file is
+ * The encoding lives in @uberctrl/protocol, where it is tested. This file is
  * only the two things that cannot: reaching the device's crypto, and reaching
  * its keystore.
  */
 
 import { Platform } from 'react-native';
 
-import { authorizedKeyLine, opensshPrivateKey } from '@uberapp/protocol';
+import { authorizedKeyLine, opensshPrivateKey } from '@uberctrl/protocol';
 
 export interface GeneratedKey {
   /** OpenSSH private key text. For ssh2, and for the keystore. */
@@ -33,7 +33,7 @@ export interface GeneratedKey {
  */
 function safeComment(input: string): string {
   const cleaned = input.replace(/[^A-Za-z0-9@._-]/g, '');
-  return cleaned.length > 0 ? cleaned.slice(0, 60) : 'uberapp';
+  return cleaned.length > 0 ? cleaned.slice(0, 60) : 'uberctrl';
 }
 
 /**
@@ -54,7 +54,7 @@ export function generateKey(comment: string): GeneratedKey {
   };
 
   // ed25519 and not RSA because quick-crypto generates nothing else; see the
-  // note in @uberapp/protocol's sshkey.ts for why that decided the format too.
+  // note in @uberctrl/protocol's sshkey.ts for why that decided the format too.
   //
   // The raw bytes come off the key objects rather than out of generateKeyPair:
   // these are formats export() understands, not encodings the generator

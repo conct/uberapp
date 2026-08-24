@@ -17,7 +17,7 @@ import {
   type MailboxInfo,
   type SieveScript,
   type SpamfolderInfo,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { useMutation, useQuery } from '../src/api/hooks';
 import {

@@ -13,7 +13,7 @@ import { join } from 'node:path';
  * Raise it whenever the agent gains or changes a method, and keep it in step
  * with packages/agent/package.json. system.uninstall was added without doing
  * so, and for twenty minutes 0.2.0 meant two different surfaces — one that
- * could take Uberapp off a host and one that could not. A version that does
+ * could take uberCTRL off a host and one that could not. A version that does
  * not move is worth as little as no version at all.
  */
 export const AGENT_VERSION = '0.4.0';
@@ -38,7 +38,7 @@ export interface AgentConfig {
 }
 
 function readTokenFile(): string | null {
-  const path = join(homedir(), '.config', 'uberapp', 'token');
+  const path = join(homedir(), '.config', 'uberctrl', 'token');
   try {
     const value = readFileSync(path, 'utf8').trim();
     return value.length > 0 ? value : null;
@@ -48,11 +48,11 @@ function readTokenFile(): string | null {
 }
 
 export function loadConfig(): AgentConfig {
-  const token = process.env.UBERAPP_TOKEN?.trim() || readTokenFile();
+  const token = process.env.UBERCTRL_TOKEN?.trim() || readTokenFile();
 
   if (!token) {
     throw new Error(
-      'No token configured. Set UBERAPP_TOKEN or write one to ~/.config/uberapp/token.\n' +
+      'No token configured. Set UBERCTRL_TOKEN or write one to ~/.config/uberctrl/token.\n' +
         'Generate one with:  head -c 32 /dev/urandom | base64',
     );
   }
@@ -60,9 +60,9 @@ export function loadConfig(): AgentConfig {
     throw new Error('Token is too short; use at least 24 characters of real entropy.');
   }
 
-  const port = Number(process.env.UBERAPP_PORT ?? 8399);
+  const port = Number(process.env.UBERCTRL_PORT ?? 8399);
   if (!Number.isInteger(port) || port < 1024 || port > 65535) {
-    throw new Error(`UBERAPP_PORT must be an integer between 1024 and 65535, got ${port}`);
+    throw new Error(`UBERCTRL_PORT must be an integer between 1024 and 65535, got ${port}`);
   }
 
   const home = homedir();
@@ -70,11 +70,11 @@ export function loadConfig(): AgentConfig {
   return {
     token,
     port,
-    bind: process.env.UBERAPP_BIND ?? '0.0.0.0',
+    bind: process.env.UBERCTRL_BIND ?? '0.0.0.0',
     user: userInfo().username,
     host: hostname(),
     home,
-    fileRoot: process.env.UBERAPP_FILE_ROOT ?? home,
-    rateLimit: Number(process.env.UBERAPP_RATE_LIMIT ?? 120),
+    fileRoot: process.env.UBERCTRL_FILE_ROOT ?? home,
+    rateLimit: Number(process.env.UBERCTRL_RATE_LIMIT ?? 120),
   };
 }

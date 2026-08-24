@@ -1,5 +1,5 @@
 /**
- * WebSocket RPC client for the Uberapp agent.
+ * WebSocket RPC client for the uberCTRL agent.
  *
  * Owns one socket and the reconnect policy. Everything the UI does goes
  * through call() or stream(); neither resolves until the socket is authorised,
@@ -13,7 +13,7 @@ import {
   type MethodName,
   type ServerMessage,
   type SessionInfo,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 export type ConnectionState =
   | 'idle'
@@ -135,7 +135,7 @@ export class UberClient {
 
     socket.onopen = () => {
       this.setStatus({ state: 'authenticating' });
-      this.send({ t: 'auth', token: this.token, client: 'uberapp-mobile' });
+      this.send({ t: 'auth', token: this.token, client: 'uberctrl-mobile' });
     };
 
     socket.onmessage = (event) => {

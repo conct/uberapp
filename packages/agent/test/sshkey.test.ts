@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { authorizedKeyLine, opensshPrivateKey, toBase64 } from '@uberapp/protocol';
+import { authorizedKeyLine, opensshPrivateKey, toBase64 } from '@uberctrl/protocol';
 
 /**
  * The encoder is checked against its own output rather than against ssh2:
@@ -33,10 +33,10 @@ describe('toBase64', () => {
 
 describe('authorizedKeyLine', () => {
   it('is the three fields sshd expects', () => {
-    const parts = authorizedKeyLine(pub, 'uberapp@handy').split(' ');
+    const parts = authorizedKeyLine(pub, 'uberctrl@handy').split(' ');
     assert.equal(parts.length, 3);
     assert.equal(parts[0], 'ssh-ed25519');
-    assert.equal(parts[2], 'uberapp@handy');
+    assert.equal(parts[2], 'uberctrl@handy');
 
     // The blob repeats the type, then carries the 32 raw bytes.
     const blob = Buffer.from(parts[1] as string, 'base64');
@@ -47,7 +47,7 @@ describe('authorizedKeyLine', () => {
 });
 
 describe('opensshPrivateKey', () => {
-  const pem = opensshPrivateKey(seed, pub, 'uberapp@handy', check);
+  const pem = opensshPrivateKey(seed, pub, 'uberctrl@handy', check);
 
   it('wears the armour OpenSSH looks for', () => {
     assert.match(pem, /^-----BEGIN OPENSSH PRIVATE KEY-----\n/);
@@ -93,7 +93,7 @@ describe('opensshPrivateKey', () => {
     assert.deepEqual(new Uint8Array(priv.value.subarray(32)), pub);
 
     const comment = readString(inner, priv.next);
-    assert.equal(comment.value.toString(), 'uberapp@handy');
+    assert.equal(comment.value.toString(), 'uberctrl@handy');
 
     // Padded to the block size with 1,2,3…, which OpenSSH checks on read.
     assert.equal(inner.length % 8, 0);

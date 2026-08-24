@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { MethodName } from '@uberapp/protocol';
+import type { MethodName } from '@uberctrl/protocol';
 import { client, RpcCallError, type ConnectionStatus } from './client';
 
 export function useConnection(): ConnectionStatus {

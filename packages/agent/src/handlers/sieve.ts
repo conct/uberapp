@@ -25,8 +25,8 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import type { SieveScript } from '@uberapp/protocol';
-import { isValidSieveName } from '@uberapp/protocol';
+import type { SieveScript } from '@uberctrl/protocol';
+import { isValidSieveName } from '@uberctrl/protocol';
 import { run } from '../exec.js';
 import { RpcError, type CallContext, type Handler } from '../rpc.js';
 import { asObject, mailboxName, requireString } from '../validate.js';
@@ -144,7 +144,7 @@ const write: Handler = async (params, ctx) => {
   await mkdir(dir, { recursive: true });
 
   const target = join(dir, name);
-  const candidate = join(dir, `.uberapp-check-${name}`);
+  const candidate = join(dir, `.uberctrl-check-${name}`);
 
   await writeFile(candidate, content, { encoding: 'utf8', mode: 0o600 });
 

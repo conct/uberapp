@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { failureReason } from '@uberapp/protocol';
+import { failureReason } from '@uberctrl/protocol';
 
 /**
  * The case this exists for, recorded verbatim: `uberspace tools version use

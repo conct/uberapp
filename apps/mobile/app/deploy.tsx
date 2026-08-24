@@ -26,7 +26,7 @@ import {
   type PortInfo,
   type ServiceInfo,
   type ServiceSpec,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { client } from '../src/api/client';
 import { describeError, useConnection } from '../src/api/hooks';

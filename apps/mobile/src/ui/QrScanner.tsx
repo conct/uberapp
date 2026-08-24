@@ -47,7 +47,7 @@ export function QrScanner({ onResult, onCancel }: QrScannerProps) {
         <Body muted style={{ fontSize: 13 }}>
           {permission.canAskAgain
             ? 'Zum Scannen braucht die App Zugriff auf die Kamera. Sie wird nur währenddessen benutzt, und es wird nichts aufgezeichnet.'
-            : 'Der Kamerazugriff ist abgelehnt. Du kannst ihn in den Android-Einstellungen unter Apps → Uberapp → Berechtigungen wieder erlauben.'}
+            : 'Der Kamerazugriff ist abgelehnt. Du kannst ihn in den Android-Einstellungen unter Apps → uberCTRL → Berechtigungen wieder erlauben.'}
         </Body>
         {permission.canAskAgain ? (
           <Button

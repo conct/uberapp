@@ -15,7 +15,7 @@ import {
   RE_VERSION,
   isValidPort,
   isValidWebPath,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 import { RpcError } from './rpc.js';
 
 export function asObject(params: unknown): Record<string, unknown> {

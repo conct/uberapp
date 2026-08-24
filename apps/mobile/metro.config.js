@@ -1,6 +1,6 @@
 // Metro config for a workspace layout.
 //
-// The app imports @uberapp/protocol, which lives in this repo rather than in
+// The app imports @uberctrl/protocol, which lives in this repo rather than in
 // the registry. Metro does not follow symlinks out of the project by default,
 // so the workspace root has to be watched explicitly and both node_modules
 // directories declared.

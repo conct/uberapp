@@ -13,7 +13,7 @@
 
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { describeSchedule, parseCrontab, serializeCrontab, type CronLine } from '@uberapp/protocol';
+import { describeSchedule, parseCrontab, serializeCrontab, type CronLine } from '@uberctrl/protocol';
 
 import { useMutation, useQuery } from '../src/api/hooks';
 import {

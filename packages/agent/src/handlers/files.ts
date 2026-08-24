@@ -9,7 +9,7 @@
 
 import { lstat, mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import type { FileEntry } from '@uberapp/protocol';
+import type { FileEntry } from '@uberctrl/protocol';
 import { RpcError, type CallContext, type Handler } from '../rpc.js';
 import { asObject, optionalBoolean, requireString } from '../validate.js';
 

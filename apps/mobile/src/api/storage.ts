@@ -8,9 +8,9 @@
  *
  * Layout, and why it is split rather than one blob:
  *
- *   uberapp.accounts     JSON [{ id, label, url }]   — no secrets
- *   uberapp.active       the id currently connected
- *   uberapp.token.<id>   one token per account
+ *   uberctrl.accounts     JSON [{ id, label, url }]   — no secrets
+ *   uberctrl.active       the id currently connected
+ *   uberctrl.token.<id>   one token per account
  *
  * Keeping tokens out of the list means each stored value stays small (iOS
  * SecureStore warns past 2 KB, and a list of accounts would grow past it), and
@@ -24,13 +24,13 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
-const ACCOUNTS_KEY = 'uberapp.accounts';
-const ACTIVE_KEY = 'uberapp.active';
-const tokenKey = (id: string) => `uberapp.token.${id}`;
+const ACCOUNTS_KEY = 'uberctrl.accounts';
+const ACTIVE_KEY = 'uberctrl.active';
+const tokenKey = (id: string) => `uberctrl.token.${id}`;
 
 /** The single-account keys this replaced. Read once, then removed. */
-const LEGACY_URL_KEY = 'uberapp.url';
-const LEGACY_TOKEN_KEY = 'uberapp.token';
+const LEGACY_URL_KEY = 'uberctrl.url';
+const LEGACY_TOKEN_KEY = 'uberctrl.token';
 
 export const secureStorageAvailable = Platform.OS !== 'web';
 
@@ -277,7 +277,7 @@ export async function clearCredentials(): Promise<void> {
  * Never stored where the OS cannot protect it. On web that means not at all,
  * which costs nothing: a browser cannot open an SSH connection anyway.
  */
-const SSH_KEY_PREFIX = 'uberapp.sshkey.';
+const SSH_KEY_PREFIX = 'uberctrl.sshkey.';
 
 function sshKeyKey(host: string, user: string): string {
   // SecureStore takes only alphanumerics, '.', '-' and '_' in a key name, and

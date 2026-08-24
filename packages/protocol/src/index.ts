@@ -1,5 +1,5 @@
 /**
- * Wire protocol between the Uberapp Expo client and the agent running on the
+ * Wire protocol between the uberCTRL Expo client and the agent running on the
  * Uberspace host.
  *
  * Design notes:
@@ -659,7 +659,7 @@ export function buildServiceIni(spec: ServiceSpec): string {
     );
   }
 
-  const lines = ['; created with uberapp'];
+  const lines = ['; created with uberctrl'];
 
   // Before the section header, so it survives as a comment no matter what
   // supervisord does with the rest.
@@ -667,7 +667,7 @@ export function buildServiceIni(spec: ServiceSpec): string {
     if (!Number.isInteger(spec.port) || spec.port < 1 || spec.port > 65535) {
       throw new ServiceSpecError(`${spec.port} is not a port number`);
     }
-    lines.push(`; uberapp-port=${spec.port}`);
+    lines.push(`; uberctrl-port=${spec.port}`);
   }
 
   lines.push(`[program:${spec.name}]`, `command=${spec.command}`);

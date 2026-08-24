@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { mkdtemp, writeFile, mkdir } from 'node:fs/promises';
 import WebSocket from 'ws';
-import type { ServerMessage } from '@uberapp/protocol';
+import type { ServerMessage } from '@uberctrl/protocol';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const entry = join(here, '..', 'src', 'index.ts');
@@ -69,17 +69,17 @@ class Client {
 }
 
 before(async () => {
-  sandbox = await mkdtemp(join(tmpdir(), 'uberapp-test-'));
+  sandbox = await mkdtemp(join(tmpdir(), 'uberctrl-test-'));
   await mkdir(join(sandbox, 'subdir'));
   await writeFile(join(sandbox, 'hello.txt'), 'moin\n', 'utf8');
 
   agent = spawn(process.execPath, ['--import', 'tsx', entry], {
     env: {
       ...process.env,
-      UBERAPP_TOKEN: TOKEN,
-      UBERAPP_PORT: String(PORT),
-      UBERAPP_BIND: '127.0.0.1',
-      UBERAPP_FILE_ROOT: sandbox,
+      UBERCTRL_TOKEN: TOKEN,
+      UBERCTRL_PORT: String(PORT),
+      UBERCTRL_BIND: '127.0.0.1',
+      UBERCTRL_FILE_ROOT: sandbox,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

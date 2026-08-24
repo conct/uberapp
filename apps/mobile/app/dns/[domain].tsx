@@ -20,7 +20,7 @@ import {
   dnsRecordProblem,
   MIN_TTL,
   type DnsRecord,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { useMutation, useQuery } from '../../src/api/hooks';
 import {

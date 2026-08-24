@@ -44,13 +44,13 @@ function stubFetch(replies: Replies): void {
 }
 
 async function writeOrder(order: Order): Promise<void> {
-  const dir = join(home, '.config', 'uberapp', 'orders');
+  const dir = join(home, '.config', 'uberctrl', 'orders');
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, `${order.id}.json`), JSON.stringify(order, null, 2), 'utf8');
 }
 
 async function readBack(id: string): Promise<Order> {
-  const path = join(home, '.config', 'uberapp', 'orders', `${id}.json`);
+  const path = join(home, '.config', 'uberctrl', 'orders', `${id}.json`);
   return JSON.parse(await readFile(path, 'utf8')) as Order;
 }
 
@@ -74,15 +74,15 @@ function anOrder(overrides: Partial<Order> = {}): Order {
 const quiet = () => {};
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), 'uberapp-sweep-'));
+  home = await mkdtemp(join(tmpdir(), 'uberctrl-sweep-'));
   previous = { home: process.env.HOME, profile: process.env.USERPROFILE };
   process.env.HOME = home;
   process.env.USERPROFILE = home;
   originalFetch = globalThis.fetch;
 
-  await mkdir(join(home, '.config', 'uberapp'), { recursive: true });
+  await mkdir(join(home, '.config', 'uberctrl'), { recursive: true });
   await writeFile(
-    join(home, '.config', 'uberapp', 'payments.json'),
+    join(home, '.config', 'uberctrl', 'payments.json'),
     JSON.stringify({
       successUrl: 'https://example.test/ok',
       cancelUrl: 'https://example.test/no',
@@ -168,7 +168,7 @@ describe('sweep', () => {
     const order = anOrder({ provider: 'paypal', reference: 'PP-1' });
     await writeOrder(order);
     await writeFile(
-      join(home, '.config', 'uberapp', 'payments.json'),
+      join(home, '.config', 'uberctrl', 'payments.json'),
       JSON.stringify({
         successUrl: 'https://example.test/ok',
         cancelUrl: 'https://example.test/no',

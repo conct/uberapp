@@ -1,10 +1,10 @@
 {
-  "name": "@uberapp/connect",
+  "name": "@uberctrl/connect",
   "version": "0.1.0",
   "license": "MIT",
   "private": true,
   "type": "module",
-  "description": "Uberapp handoff broker: holds one sealed payload per slot, briefly, and reads none of them",
+  "description": "uberCTRL handoff broker: holds one sealed payload per slot, briefly, and reads none of them",
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -b",
@@ -14,7 +14,7 @@
     "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
-    "@uberapp/protocol": "*"
+    "@uberctrl/protocol": "*"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

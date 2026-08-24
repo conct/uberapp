@@ -17,8 +17,8 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import type { AuthInfo, IssuedToken, IssuedTokenInfo } from '@uberapp/protocol';
-import { MAX_ISSUED_TOKENS } from '@uberapp/protocol';
+import type { AuthInfo, IssuedToken, IssuedTokenInfo } from '@uberctrl/protocol';
+import { MAX_ISSUED_TOKENS } from '@uberctrl/protocol';
 import type { AgentConfig } from './config.js';
 
 interface StoredToken {
@@ -32,7 +32,7 @@ interface StoredToken {
 }
 
 export function tokenStorePath(config: AgentConfig): string {
-  return join(config.home, '.config', 'uberapp', 'tokens.json');
+  return join(config.home, '.config', 'uberctrl', 'tokens.json');
 }
 
 export function hashToken(token: string): string {

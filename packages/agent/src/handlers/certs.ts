@@ -17,8 +17,8 @@
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { X509Certificate } from 'node:crypto';
 import { join } from 'node:path';
-import type { CertInfo, CertWatchConfig } from '@uberapp/protocol';
-import { isValidServiceName } from '@uberapp/protocol';
+import type { CertInfo, CertWatchConfig } from '@uberctrl/protocol';
+import { isValidServiceName } from '@uberctrl/protocol';
 import type { AgentConfig } from '../config.js';
 import { run } from '../exec.js';
 import { RpcError, type Handler } from '../rpc.js';
@@ -31,7 +31,7 @@ export function certDir(config: AgentConfig): string {
 }
 
 function watchConfigPath(config: AgentConfig): string {
-  return join(config.home, '.config', 'uberapp', 'cert-watch.json');
+  return join(config.home, '.config', 'uberctrl', 'cert-watch.json');
 }
 
 const EMPTY_WATCH: CertWatchConfig = { services: [], lastSeen: null, lastRestart: null };
@@ -58,7 +58,7 @@ export async function loadWatchConfig(config: AgentConfig): Promise<CertWatchCon
 
 async function saveWatchConfig(config: AgentConfig, value: CertWatchConfig): Promise<void> {
   const path = watchConfigPath(config);
-  await mkdir(join(config.home, '.config', 'uberapp'), { recursive: true });
+  await mkdir(join(config.home, '.config', 'uberctrl'), { recursive: true });
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
 }
 

@@ -14,7 +14,7 @@ import {
   MAX_FIREWALL_PORTS,
   type ListenerInfo,
   type PortInfo,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 import { run } from '../exec.js';
 import { RpcError, type Handler } from '../rpc.js';
 import { asObject, firewallPort } from '../validate.js';

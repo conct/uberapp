@@ -17,7 +17,7 @@ import {
   type CertWatchConfig,
   type HeaderInfo,
   type ServiceInfo,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { useConnection, useMutation, useQuery } from '../src/api/hooks';
 import {

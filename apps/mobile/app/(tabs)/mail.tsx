@@ -15,7 +15,7 @@ import {
   isValidMailbox,
   type DomainInfo,
   type MailboxInfo,
-} from '@uberapp/protocol';
+} from '@uberctrl/protocol';
 
 import { useConnection, useMutation, useQuery } from '../../src/api/hooks';
 import {
