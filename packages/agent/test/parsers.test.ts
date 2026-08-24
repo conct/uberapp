@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 
 import { isNothingToDo, parseStatus, portsIn } from '../src/handlers/services.js';
 import { parseCatchall, parseForward, parseSpamfolder } from '../src/handlers/mail.js';
-import { parseBackends, parseHeaders, toPunycode } from '../src/handlers/web.js';
+import {
+  optionalDomain,
+  parseBackends,
+  parseHeaders,
+  toPunycode,
+} from '../src/handlers/web.js';
 import { shouldRestart } from '../src/handlers/certs.js';
 import { parseQuota } from '../src/handlers/system.js';
 import {
@@ -172,6 +177,37 @@ describe('parseBackends', () => {
     const [backend] = parseBackends(raw);
     assert.equal(backend?.raw, raw);
     assert.equal(backend?.removePrefix, true);
+  });
+
+  it('reads a backend that is a bare path with no domain', () => {
+    // What `uberspace web backend set /probe` creates. The domain is genuinely
+    // absent rather than unknown, and saying so is what lets it be deleted
+    // again — an empty string handed back as a domain name fails validation.
+    const [backend] = parseBackends('/uberctrl-probe http:45678 => 502');
+    assert.equal(backend?.domain, '');
+    assert.equal(backend?.path, '/uberctrl-probe');
+    assert.equal(backend?.port, 45678);
+  });
+});
+
+describe('optionalDomain', () => {
+  it('treats a blank domain as no domain', () => {
+    // The bug this exists for: a path-only backend could be created and listed
+    // but never removed, because the empty domain from the listing came back
+    // as a domain name and was rejected as invalid.
+    assert.equal(optionalDomain({ domain: '' }), undefined);
+    assert.equal(optionalDomain({ domain: '   ' }), undefined);
+    assert.equal(optionalDomain({}), undefined);
+    assert.equal(optionalDomain({ domain: null }), undefined);
+  });
+
+  it('still passes a real domain through', () => {
+    assert.equal(optionalDomain({ domain: 'isabell.uber.space' }), 'isabell.uber.space');
+  });
+
+  it('still refuses something that is not a domain', () => {
+    // Blank is absent; nonsense is still nonsense.
+    assert.throws(() => optionalDomain({ domain: 'not a domain' }));
   });
 });
 

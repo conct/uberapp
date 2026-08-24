@@ -110,6 +110,25 @@ const recordsShow: Handler = async (params) => {
   return { domain, output: (result.stdout + result.stderr).trim(), ok: result.ok };
 };
 
+/**
+ * The domain half of a CLI target, when there is one.
+ *
+ * A backend or a header can belong to a bare path with no domain at all —
+ * `uberspace web backend set /something` creates exactly that, and the listing
+ * shows it without a domain. The parser then reports an empty string, and a
+ * client handing that back would have it rejected as not being a domain name:
+ * the entry becomes one that can be created and listed but never deleted.
+ *
+ * So blank counts as absent, which makes the target the bare path — precisely
+ * what it was created as.
+ */
+export function optionalDomain(p: Record<string, unknown>): string | undefined {
+  const given = p['domain'];
+  if (given === undefined || given === null) return undefined;
+  if (typeof given === 'string' && given.trim() === '') return undefined;
+  return domainName(p);
+}
+
 // --- backends --------------------------------------------------------------
 
 /**
@@ -157,7 +176,7 @@ const backendsList: Handler = async () => {
 const backendsSet: Handler = async (params) => {
   const p = asObject(params);
   const path = webPath(p, 'path', '/');
-  const domain = p['domain'] === undefined ? undefined : domainName(p);
+  const domain = optionalDomain(p);
   const targetPort = port(p);
   const removePrefix = optionalBoolean(p, 'removePrefix');
 
@@ -187,7 +206,7 @@ const backendsSet: Handler = async (params) => {
 const backendsDel: Handler = async (params) => {
   const p = asObject(params);
   const path = webPath(p, 'path', '/');
-  const domain = p['domain'] === undefined ? undefined : domainName(p);
+  const domain = optionalDomain(p);
   const target = domain ? `${domain}${path}` : path;
 
   const result = await run('uberspace', ['web', 'backend', 'del', target], { timeoutMs: 60_000 });
@@ -332,7 +351,7 @@ export function parseHeaders(stdout: string): HeaderInfo[] {
  */
 function headerTarget(p: Record<string, unknown>): string {
   const path = webPath(p, 'path', '/');
-  const domain = p['domain'] === undefined ? undefined : domainName(p);
+  const domain = optionalDomain(p);
   return domain ? `${domain}${path}` : path;
 }
 
