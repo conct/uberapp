@@ -122,6 +122,9 @@ registrieren, umziehen):
 `"endpoint"` geht alles aufs **OT&E-Testsystem** — dort kostet ein Fehlgriff
 nichts. Erst `"endpoint": "https://api.domrobot.com/jsonrpc/"` kauft echt.
 
+Das Testsystem braucht ein **eigenes Konto**, getrennt registriert auf
+ote.inwx.de. Ein bestehender INWX-Login gilt dort nicht.
+
 `payments.json` schaltet zusätzlich den **Verkauf** frei (Kasse, Bestellungen):
 
 ```json
@@ -155,6 +158,10 @@ denn sie erscheinen genau in dem Moment, in dem jemand gerade bezahlt hat und
 die Verbindung unbekannt ist. **Bevor du echtes Geld annimmst:** in beiden
 Dateien die Fußzeile mit deinen Links zu Impressum, AGB und
 Widerrufsbelehrung füllen.
+
+Beide Dateien liest der Agent **nur beim Start**. Nach dem Anlegen also
+`supervisorctl restart uberctrl-agent` -- erst danach meldet er die
+Fähigkeit und die Knöpfe erscheinen in der App.
 
 ## Entwicklung
 

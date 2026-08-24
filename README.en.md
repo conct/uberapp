@@ -105,6 +105,57 @@ mailboxes, forwarding, catch-all, Sieve) · Databases (create, tables,
 dump/import) · Backup (snapshots, preview, restore) · Ports (joined with `ss`,
 so you see whether anything is listening) · Files · Cron · Diagnostics.
 
+### Domains and selling
+
+Two features stay switched off until the matching file exists on the host. Both
+live in ~/.config/uberctrl, both are mode 600, and neither belongs in the
+repository:
+
+```json
+// inwx.json - switches on domains and DNS
+{ "user": "...", "pass": "...", "sharedSecret": "BASE32..." }
+```
+
+`sharedSecret` only if two-factor authentication is on at the registrar.
+Without an `endpoint` everything goes to the **OT&E test system**, where a
+mistake costs nothing; only `"endpoint": "https://api.domrobot.com/jsonrpc/"`
+buys for real. The test system needs its own account, registered separately at
+ote.inwx.de - an existing INWX login does not work there.
+
+```json
+// payments.json - additionally switches on selling
+{
+  "successUrl": "https://uberctrl.YOUR-USER.uber.space/kasse/danke.html",
+  "cancelUrl": "https://uberctrl.YOUR-USER.uber.space/kasse/abgebrochen.html",
+  "margin": { "percent": 25, "minCents": 500 },
+  "stripe": { "secretKey": "sk_...", "webhookSecret": "whsec_..." },
+  "paypal": { "clientId": "...", "clientSecret": "...", "webhookId": "..." }
+}
+```
+
+One provider is enough. The margin lives here rather than in the app on
+purpose: the selling price is computed on the host, and the app may only
+*display* it and, when ordering, state what it displayed - if that no longer
+matches, the agent refuses. Without `margin` a domain sells at cost, and the
+app says so rather than hiding a markup.
+
+The webhooks listen on `/webhooks/stripe` and `/webhooks/paypal`. Both
+verify the signature over the **raw** bytes before anything is parsed. When a
+webhook is lost, a sweep every fifteen minutes asks both providers and the
+registrar what actually happened and writes that down. Nothing is ever refunded
+automatically: an order lands on "refund due" and waits for a decision.
+
+The two checkout pages ship with the web view from
+`packages/agent/deploy/checkout/` and are deliberately self-contained - no
+script, no font from elsewhere, because they appear the moment somebody has
+just paid over a connection nobody knows anything about. **Before taking real
+money:** fill in the footer of both with your own imprint, terms and
+cancellation-policy links.
+
+Note that the agent reads both files **only at startup**. After creating one,
+`supervisorctl restart uberctrl-agent`.
+
+
 ## Development
 
 ```bash
