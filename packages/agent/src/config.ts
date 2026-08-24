@@ -16,7 +16,7 @@ import { join } from 'node:path';
  * could take Uberapp off a host and one that could not. A version that does
  * not move is worth as little as no version at all.
  */
-export const AGENT_VERSION = '0.3.0';
+export const AGENT_VERSION = '0.4.0';
 
 export interface AgentConfig {
   /** Shared secret the client must present. */

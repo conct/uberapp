@@ -1,9 +1,11 @@
 /**
- * The one door in this agent that opens without a token.
+ * The two doors in this agent that open without a token.
  *
  * Everything else sits behind the WebSocket and a shared secret. A webhook
- * cannot: Stripe has no token of ours, it has a signature. So the rules here
- * are narrower than anywhere else in the codebase.
+ * cannot be: neither provider has a token of ours. Stripe signs its events and
+ * we check the signature locally; PayPal signs its own and we ask PayPal to
+ * confirm it. So the rules here are narrower than anywhere else in the
+ * codebase.
  *
  *   - The raw bytes are verified before anything is parsed. JSON.parse of an
  *     unverified body is already trusting it.
@@ -20,9 +22,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { readPayments } from './config.js';
 import { onPaid } from './fulfil.js';
 import { findByReference, loadOrder } from './orders.js';
+import { captureOrder, verifyWebhook as verifyPayPalWebhook } from './paypal.js';
 import { verifyWebhook, WebhookError } from './stripe.js';
 
-/** Stripe's events are small; anything of this size is not one. */
+/** Both providers send small events; anything of this size is not one. */
 const MAX_BODY_BYTES = 64 * 1024;
 
 export const STRIPE_WEBHOOK_PATH = '/webhooks/stripe';
@@ -144,4 +147,117 @@ export async function handleStripeWebhook(
   }
 
   return true;
+}
+
+export const PAYPAL_WEBHOOK_PATH = '/webhooks/paypal';
+
+interface PayPalEvent {
+  event_type?: string;
+  resource?: {
+    id?: string;
+    custom_id?: string;
+    purchase_units?: { custom_id?: string }[];
+    supplementary_data?: { related_ids?: { order_id?: string } };
+  };
+}
+
+/**
+ * Handle POST /webhooks/paypal.
+ *
+ * The same shape as the Stripe one and the same rules, with one addition that
+ * Stripe does not need: approval is not payment. PayPal tells us a customer
+ * approved an order; the money only moves when we capture it. So the approved
+ * event triggers a capture, and only a completed capture marks an order paid.
+ */
+export async function handlePayPalWebhook(
+  req: IncomingMessage,
+  res: ServerResponse,
+  log: (level: 'info' | 'warn', message: string) => void,
+): Promise<boolean> {
+  if (req.url !== PAYPAL_WEBHOOK_PATH) return false;
+
+  const done = (status: number) => {
+    res.writeHead(status, { 'content-type': 'text/plain' });
+    res.end();
+  };
+
+  if (req.method !== 'POST') {
+    done(405);
+    return true;
+  }
+
+  const payments = await readPayments();
+  if (!payments?.paypal) {
+    done(404);
+    return true;
+  }
+
+  let raw: string;
+  try {
+    raw = await readRawBody(req);
+  } catch {
+    done(400);
+    return true;
+  }
+
+  if (!(await verifyPayPalWebhook(payments.paypal, req.headers, raw))) {
+    log('warn', 'a PayPal webhook failed verification');
+    done(400);
+    return true;
+  }
+
+  let event: PayPalEvent;
+  try {
+    event = JSON.parse(raw) as PayPalEvent;
+  } catch {
+    done(400);
+    return true;
+  }
+
+  const type = event.event_type ?? '';
+  if (type !== 'CHECKOUT.ORDER.APPROVED' && type !== 'PAYMENT.CAPTURE.COMPLETED') {
+    // Acknowledged so PayPal stops resending, and otherwise ignored.
+    done(200);
+    return true;
+  }
+
+  const resource = event.resource ?? {};
+  const orderId = resource.custom_id ?? resource.purchase_units?.[0]?.custom_id ?? null;
+  const order = orderId ? await loadOrder(orderId) : null;
+
+  if (!order) {
+    log('warn', `a PayPal event referred to an unknown order (${orderId ?? '?'})`);
+    done(200);
+    return true;
+  }
+
+  done(200);
+
+  try {
+    if (type === 'CHECKOUT.ORDER.APPROVED') {
+      // Approval alone has taken nothing. Capture first, and only then is
+      // there money to register a domain against.
+      const paypalOrderId = resource.id ?? order.reference;
+      if (!paypalOrderId) {
+        log('warn', `order ${order.id}: approved without a PayPal order id`);
+        return true;
+      }
+      await captureOrder(payments.paypal, paypalOrderId);
+    }
+    await onPaid(order, `PayPal ${type}`, log);
+  } catch (err) {
+    log('warn', `order ${order.id}: PayPal fulfilment threw — ${String(err)}`);
+  }
+
+  return true;
+}
+
+/** Both doors, tried in turn, so the server needs to know about neither. */
+export async function handleWebhooks(
+  req: IncomingMessage,
+  res: ServerResponse,
+  log: (level: 'info' | 'warn', message: string) => void,
+): Promise<boolean> {
+  if (await handleStripeWebhook(req, res, log)) return true;
+  return handlePayPalWebhook(req, res, log);
 }

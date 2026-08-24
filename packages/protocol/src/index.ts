@@ -231,6 +231,10 @@ export const METHODS = [
   'orders.create',
   'orders.list',
   'orders.get',
+  // Reconciliation, not a decision: it asks the providers and the registrar
+  // what is actually true and writes that down. The agent runs it on a timer
+  // regardless, so it is deliberately not among the methods the app confirms.
+  'orders.sweep',
 
   // --- files / deploy ------------------------------------------------------
   'files.list',

@@ -14,7 +14,9 @@
 import { readAccount, withInwx } from '../inwx.js';
 import { readPayments } from '../payments/config.js';
 import { listOrders, loadOrder, newOrder, saveOrder, type Order } from '../payments/orders.js';
+import { createOrder as createPayPalOrder } from '../payments/paypal.js';
 import { createCheckoutSession } from '../payments/stripe.js';
+import { sweep } from '../payments/sweep.js';
 import { RpcError, type Handler } from '../rpc.js';
 import { asObject, requireEnum, requireString } from '../validate.js';
 
@@ -69,10 +71,12 @@ const create: Handler = async (params) => {
 
   const payments = await readPayments();
   if (!payments) throw RpcError.badRequest('Auf diesem Host ist kein Zahlungsanbieter hinterlegt.');
-  if (provider === 'paypal') {
-    throw RpcError.badRequest('PayPal ist noch nicht angebunden — bitte Stripe wählen.');
+  if (provider === 'paypal' && !payments.paypal) {
+    throw RpcError.badRequest('Für PayPal fehlen die Zugangsdaten.');
   }
-  if (!payments.stripe) throw RpcError.badRequest('Für Stripe fehlen die Zugangsdaten.');
+  if (provider === 'stripe' && !payments.stripe) {
+    throw RpcError.badRequest('Für Stripe fehlen die Zugangsdaten.');
+  }
 
   const account = await readAccount();
   if (!account) throw RpcError.badRequest('Auf diesem Host ist kein Registrar-Konto hinterlegt.');
@@ -113,19 +117,32 @@ const create: Handler = async (params) => {
   await saveOrder(order);
 
   // 3. Now ask for a page to send the customer to.
+  const description = `${action === 'transfer' ? 'Umzug' : 'Registrierung'} ${domain}`;
+
   try {
-    const session = await createCheckoutSession(payments.stripe, {
-      amountCents,
-      currency,
-      description: `${action === 'transfer' ? 'Umzug' : 'Registrierung'} ${domain}`,
-      orderId: order.id,
-      successUrl: payments.successUrl,
-      cancelUrl: payments.cancelUrl,
-      email,
-    });
-    order = { ...order, reference: session.id, updatedAt: new Date().toISOString() };
+    const checkout =
+      provider === 'paypal'
+        ? await createPayPalOrder(payments.paypal!, {
+            amountCents,
+            currency,
+            description,
+            orderId: order.id,
+            returnUrl: payments.successUrl,
+            cancelUrl: payments.cancelUrl,
+          }).then((created) => ({ id: created.id, url: created.approveUrl }))
+        : await createCheckoutSession(payments.stripe!, {
+            amountCents,
+            currency,
+            description,
+            orderId: order.id,
+            successUrl: payments.successUrl,
+            cancelUrl: payments.cancelUrl,
+            email,
+          });
+
+    order = { ...order, reference: checkout.id, updatedAt: new Date().toISOString() };
     await saveOrder(order);
-    return { order: forClient(order), checkoutUrl: session.url };
+    return { order: forClient(order), checkoutUrl: checkout.url };
   } catch (err) {
     // The order stays, in awaiting_payment, with no reference. It is a record
     // of an attempt rather than litter: nobody paid, and it can be cancelled.
@@ -145,8 +162,23 @@ const get: Handler = async (params) => {
   return { order: forClient(order) };
 };
 
+/**
+ * Run the catch-up pass now.
+ *
+ * The agent runs it on a timer anyway; this is the button for somebody who is
+ * looking at an order they believe is wrong and does not want to wait a
+ * quarter of an hour to find out.
+ */
+const runSweep: Handler = async () => {
+  const result = await sweep((level, message) => {
+    process.stderr.write(`[orders.sweep] ${level}: ${message}` + '\n');
+  });
+  return { sweep: result };
+};
+
 export const orderHandlers: Record<string, Handler> = {
   'orders.create': create,
+  'orders.sweep': runSweep,
   'orders.list': list,
   'orders.get': get,
 };

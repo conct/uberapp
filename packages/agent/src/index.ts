@@ -29,7 +29,8 @@ import { runWatchPass, WATCH_POLL_MS } from './handlers/certs.js';
 import { hasMysqlCredentials, myCnfPath } from './handlers/db.js';
 import { readAccount } from './inwx.js';
 import { readPayments } from './payments/config.js';
-import { handleStripeWebhook } from './payments/webhook.js';
+import { startSweeping } from './payments/sweep.js';
+import { handleWebhooks } from './payments/webhook.js';
 import { handlers, missingHandlers } from './handlers/registry.js';
 
 // Fail fast on a method that is advertised but not wired up. The test suite
@@ -337,7 +338,7 @@ async function main() {
   // the raw request body: anything that reads the stream before it does
   // breaks the signature it is verified against.
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
-    void handleStripeWebhook(req, res, log).then((taken) => {
+    void handleWebhooks(req, res, log).then((taken) => {
       if (!taken) serveHttp(req, res);
     });
   });
@@ -384,6 +385,13 @@ async function main() {
       'unknown';
     new Connection(ws, config, capabilities, remote);
   });
+
+  // The catch-up pass, but only on a host that sells something. Elsewhere
+  // there are no orders and the timer would be a heartbeat over an empty
+  // directory.
+  if (capabilities.includes('payments')) {
+    startSweeping(log);
+  }
 
   server.listen(config.port, config.bind, () => {
     log('info', `uberapp agent ${AGENT_VERSION} listening on ${config.bind}:${config.port}`);
