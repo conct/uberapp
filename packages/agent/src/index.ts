@@ -28,6 +28,8 @@ import { SNAPSHOT_ROOT } from './handlers/backup.js';
 import { runWatchPass, WATCH_POLL_MS } from './handlers/certs.js';
 import { hasMysqlCredentials, myCnfPath } from './handlers/db.js';
 import { readAccount } from './inwx.js';
+import { readPayments } from './payments/config.js';
+import { handleStripeWebhook } from './payments/webhook.js';
 import { handlers, missingHandlers } from './handlers/registry.js';
 
 // Fail fast on a method that is advertised but not wired up. The test suite
@@ -303,6 +305,12 @@ async function detectCapabilities(): Promise<Capability[]> {
     capabilities.push('domains');
   }
 
+  // Selling needs both halves: a registrar to buy from and a way to be paid.
+  // Either one alone is a screen that cannot finish what it starts.
+  if ((await readAccount()) && (await readPayments())) {
+    capabilities.push('payments');
+  }
+
   return capabilities;
 }
 
@@ -325,7 +333,16 @@ async function main() {
   watchCerts();
   setInterval(watchCerts, WATCH_POLL_MS).unref();
 
+  // The webhook is checked first because it is the only route that must see
+  // the raw request body: anything that reads the stream before it does
+  // breaks the signature it is verified against.
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+    void handleStripeWebhook(req, res, log).then((taken) => {
+      if (!taken) serveHttp(req, res);
+    });
+  });
+
+  function serveHttp(req: IncomingMessage, res: ServerResponse): void {
     if (req.url === '/healthz') {
       // Readable from any origin on purpose. The web client probes this from
       // whatever address it happens to be served on — a dev server on
@@ -353,7 +370,7 @@ async function main() {
     }
     res.writeHead(426, { 'content-type': 'text/plain' });
     res.end('This endpoint speaks WebSocket only.\n');
-  });
+  }
 
   const wss = new WebSocketServer({ server, maxPayload: 8 * 1024 * 1024 });
 

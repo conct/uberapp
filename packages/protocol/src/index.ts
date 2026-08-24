@@ -93,7 +93,13 @@ export type Capability =
    * Domains and DNS at the registrar. Present only when the host holds an
    * INWX account, which is what keeps this out of a build that has none.
    */
-  | 'domains';
+  | 'domains'
+  /**
+   * Selling: a checkout and the orders behind it. Needs both a registrar
+   * to buy from and a provider to be paid through; either alone is a
+   * screen that cannot finish what it starts.
+   */
+  | 'payments';
 
 // ---------------------------------------------------------------------------
 // Method catalog
@@ -219,6 +225,13 @@ export const METHODS = [
   'domains.register',
   'domains.transfer',
 
+  // --- selling ---------------------------------------------------------------
+  // Taking an order and looking at one. Nothing here can mark an order paid:
+  // that comes from the provider, signature-verified, and from nowhere else.
+  'orders.create',
+  'orders.list',
+  'orders.get',
+
   // --- files / deploy ------------------------------------------------------
   'files.list',
   'files.read',
@@ -296,6 +309,7 @@ export const MUTATING_METHODS: ReadonlySet<MethodName> = new Set<MethodName>([
   'dns.deleteRecord',
   'domains.register',
   'domains.transfer',
+  'orders.create',
   'db.mysql.create',
   'db.mysql.drop',
   'db.mysql.import',

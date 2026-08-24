@@ -79,14 +79,27 @@ export interface Order {
   /** What was sold. */
   domain: string;
   action: 'register' | 'transfer';
-  /** Agreed at checkout, in the smallest unit, so no float ever rounds money. */
+  /** What the customer agreed to pay, in the smallest unit — never a float. */
   amountCents: number;
   currency: string;
+  /**
+   * What the registrar wanted when this order was taken.
+   *
+   * A second number because this is a resale: the customer pays one price and
+   * the registrar charges another, and the difference is the margin. Recording
+   * it at order time is what turns a price rise between the order and the
+   * registration into something noticed rather than absorbed — fulfilment
+   * passes it as the price it expects, and the registrar refuses if it moved.
+   */
+  registrarCostCents: number;
+  registrarCurrency: string;
   provider: PaymentProvider;
   /** The provider's own id: a Checkout Session or a PayPal order. */
   reference: string | null;
   /** Who bought it, as far as we know. */
   email: string | null;
+  /** Only set for a transfer; needed once, at fulfilment. */
+  authCode: string | null;
   /** The registrar's contact handles this order will use. */
   contacts: Record<string, number>;
   /** Set once the registrar has confirmed. */
@@ -110,9 +123,13 @@ export interface NewOrder {
   action: 'register' | 'transfer';
   amountCents: number;
   currency: string;
+  registrarCostCents: number;
+  registrarCurrency: string;
   provider: PaymentProvider;
   contacts: Record<string, number>;
   email?: string | null;
+  /** Only for a transfer, and never written to the log. */
+  authCode?: string | null;
 }
 
 export function newOrder(input: NewOrder, now: Date = new Date()): Order {
@@ -124,9 +141,12 @@ export function newOrder(input: NewOrder, now: Date = new Date()): Order {
     action: input.action,
     amountCents: input.amountCents,
     currency: input.currency,
+    registrarCostCents: input.registrarCostCents,
+    registrarCurrency: input.registrarCurrency,
     provider: input.provider,
     reference: null,
     email: input.email ?? null,
+    authCode: input.authCode ?? null,
     contacts: input.contacts,
     registeredAt: null,
     createdAt: at,
