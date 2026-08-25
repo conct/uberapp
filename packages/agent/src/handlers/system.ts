@@ -163,29 +163,64 @@ const KNOWN_TOOLS = [
   'influxdb',
 ];
 
+/**
+ * How many tools to ask about at once.
+ *
+ * This used to be all of them: fourteen tools times two subcommands is
+ * twenty-eight `uberspace` processes started in the same tick, each a Python
+ * program on a host shared with strangers. The first real call against a host
+ * died with "Command timed out after 15000ms" — self-inflicted, and it took
+ * the whole answer with it, because one rejected promise fails a Promise.all.
+ * Three at a time keeps the host civil and still finishes in a few seconds.
+ */
+const TOOL_PROBE_BATCH = 3;
+
 const toolVersions: Handler = async () => {
   const versions: ToolVersion[] = [];
+  let answered = 0;
 
-  await Promise.all(
-    KNOWN_TOOLS.map(async (tool) => {
-      const [show, list] = await Promise.all([
-        run('uberspace', ['tools', 'version', 'show', tool], { timeoutMs: 15_000 }),
-        run('uberspace', ['tools', 'version', 'list', tool], { timeoutMs: 15_000 }),
-      ]);
+  for (let index = 0; index < KNOWN_TOOLS.length; index += TOOL_PROBE_BATCH) {
+    const batch = KNOWN_TOOLS.slice(index, index + TOOL_PROBE_BATCH);
 
-      // A tool that is not switchable on this host exits non-zero for both.
-      if (!show.ok && !list.ok) return;
+    await Promise.all(
+      batch.map(async (tool) => {
+        let show, list;
+        try {
+          [show, list] = await Promise.all([
+            run('uberspace', ['tools', 'version', 'show', tool], { timeoutMs: 30_000 }),
+            run('uberspace', ['tools', 'version', 'list', tool], { timeoutMs: 30_000 }),
+          ]);
+        } catch {
+          // A timeout or a failure to spawn rejects. That says nothing about
+          // the other thirteen tools, so it stays this tool's problem.
+          return;
+        }
 
-      versions.push({
-        tool,
-        current: extractVersion(show.stdout) ?? null,
-        available: list.stdout
-          .split('\n')
-          .map((line) => line.trim())
-          .filter((line) => /^[\d.]+$/.test(line)),
-      });
-    }),
-  );
+        answered += 1;
+
+        // A tool that is not switchable on this host exits non-zero for both.
+        if (!show.ok && !list.ok) return;
+
+        versions.push({
+          tool,
+          current: extractVersion(show.stdout) ?? null,
+          available: list.stdout
+            .split('\n')
+            .map((line) => line.trim())
+            .filter((line) => /^[\d.]+$/.test(line)),
+        });
+      }),
+    );
+  }
+
+  // Not one of the fourteen could be asked. Returning [] here would render as
+  // "this host has no switchable tools", which is a claim about the platform;
+  // what actually happened is that the CLI never answered.
+  if (answered === 0) {
+    throw RpcError.commandFailed(
+      'uberspace answered for none of the known tools — the host is too slow to respond, or the CLI is gone.',
+    );
+  }
 
   return versions.sort((a, b) => a.tool.localeCompare(b.tool));
 };
