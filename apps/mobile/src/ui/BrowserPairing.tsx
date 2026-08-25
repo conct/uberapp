@@ -108,6 +108,12 @@ export function BrowserPairing({ onPaired }: { onPaired: (payload: HandoffPayloa
         // 404 is the ordinary answer while the slot is still empty.
         if (response.status !== 200) return;
 
+        // A host that answers every path with the app shell — a dev server
+        // without the broker behind it, or a misrouted /connect — also says
+        // 200. Reading that page as a sealed payload would burn the code on
+        // the first poll, so a document is never an answer from the broker.
+        if (/^\s*text\/html/i.test(response.headers.get('content-type') ?? '')) return;
+
         const sealed = await response.text();
         const payload = await openHandoff(crypto, secret.key, sealed);
 
@@ -152,7 +158,10 @@ export function BrowserPairing({ onPaired }: { onPaired: (payload: HandoffPayloa
           <InfoBanner message="Der Code ist abgelaufen. Aus Sicherheitsgründen gilt er nur zwei Minuten." />
           <Button label="Neuen Code anzeigen" variant="primary" onPress={start} />
         </>
-      ) : code ? (
+      ) : !expired && code ? (
+        // Spent is spent: a code that has expired, or whose slot came back
+        // unreadable, must not stay on screen. Scanning it leads nowhere,
+        // and the error above already says so.
         <>
           <View style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
             <QrCode value={code} size={240} />
