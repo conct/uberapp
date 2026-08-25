@@ -238,12 +238,33 @@ function ToolCard({ tool }: { tool: ToolVersion }) {
   });
   const restart = useMutation<{ tool: string }>('tools.restart');
 
+  /*
+   * The version in use is not always one you may still pick. This account runs
+   * PostgreSQL 13 while uberspace offers only 14 and 15 — so the list arrived
+   * with nothing selected in it, which reads as a bug in the app rather than
+   * as the fact it is. It also has a consequence worth saying out loud: a
+   * switch away from a version that is no longer offered cannot be switched
+   * back here.
+   */
+  const retired = current !== null && tool.available.length > 0 && !tool.available.includes(current);
+
   return (
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <SectionTitle>{tool.tool}</SectionTitle>
-        <Badge label={current ?? 'unbekannt'} color={current ? theme.success : theme.warning} />
+        <Badge
+          label={current ?? 'unbekannt'}
+          color={current && !retired ? theme.success : theme.warning}
+        />
       </View>
+
+      {retired ? (
+        <Body muted style={{ fontSize: 13 }}>
+          Läuft auf <Mono>{current}</Mono>, und diese Fassung steht nicht mehr zur Auswahl. Ein
+          Wechsel lässt sich hier nicht zurücknehmen — <Mono>{current}</Mono> wäre danach nicht mehr
+          wählbar.
+        </Body>
+      ) : null}
 
       {set.error ? <ErrorBanner message={set.error} /> : null}
       {set.output ? <OutputBlock text={set.output} /> : null}
