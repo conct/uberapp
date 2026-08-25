@@ -464,10 +464,15 @@ export function parseToolVersion(tool: string, show: string, list: string): Tool
   return {
     tool,
     current: quoted?.[1] ?? bare?.[1] ?? null,
+    // Not every version is a number. A real host answers `show rust` with
+    // "Using 'rust' version: 'stable'", so a filter that insists on a digit
+    // throws away the only name rust has. RE_VERSION allows neither spaces nor
+    // colons, which is enough to keep a heading like "Available versions:" out
+    // without also excluding stable, nightly or lts.
     available: list
       .split('\n')
       .map((line) => line.trim().replace(/^[-*•]\s*/, ''))
-      .filter((line) => RE_VERSION.test(line) && /\d/.test(line)),
+      .filter((line) => RE_VERSION.test(line)),
   };
 }
 

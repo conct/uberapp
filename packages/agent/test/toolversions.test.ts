@@ -56,6 +56,16 @@ describe('parseToolVersion', () => {
     assert.deepEqual(parseToolVersion('node', '', list).available, ['18']);
   });
 
+  it('keeps versions that are names rather than numbers', () => {
+    // rust is the case that proved this: a real host answers `show rust` with
+    // "Using 'rust' version: 'stable'". Requiring a digit dropped the only
+    // name it has, and the screen then said rust had no selectable versions
+    // while showing 'stable' as the current one.
+    const parsed = parseToolVersion('rust', "Using 'rust' version: 'stable'\n", '- stable\n- nightly\n');
+    assert.equal(parsed.current, 'stable');
+    assert.deepEqual(parsed.available, ['stable', 'nightly']);
+  });
+
   it('names every tool the manual documents as switchable', () => {
     // A guard on the shared list: the client walks it to ask tool by tool, so
     // dropping an entry silently removes a tool from the interface.

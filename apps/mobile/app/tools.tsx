@@ -118,6 +118,7 @@ function useToolProbe() {
     pending: count('queued') + count('asking'),
     found: count('found'),
     failed: count('failed'),
+    absentTools: KNOWN_TOOLS.filter((tool) => probe[tool]?.state === 'absent'),
     retry: () => setAttempt((value) => value + 1),
   };
 }
@@ -152,23 +153,42 @@ export default function ToolsScreen() {
         asked. Before this the screen showed nothing at all until the first
         answer came back, which on this host is most of a minute — and an
         empty screen is how a hang looks.
+
+        A tool the host does not offer keeps its place until the sweep ends,
+        rather than vanishing the moment its answer lands. Removing rows from
+        the middle of a list somebody is reading pulls everything below them
+        upwards, and there are fourteen chances for that to happen. Once it is
+        over they collapse into one line at the bottom, where they cost a
+        sentence instead of a screen.
       */}
       {KNOWN_TOOLS.map((tool) => {
         const entry = probe.probe[tool] ?? { state: 'queued' as const };
 
         if (entry.state === 'found') return <ToolCard key={tool} tool={entry.version} />;
-        if (entry.state === 'absent') return null;
+        if (entry.state === 'absent') {
+          return probe.running ? <WaitingCard key={tool} tool={tool} state="absent" /> : null;
+        }
         if (entry.state === 'failed') {
           return everythingFailed ? null : <WaitingCard key={tool} tool={tool} state="failed" />;
         }
         return <WaitingCard key={tool} tool={tool} state={entry.state} />;
       })}
 
+      {!probe.running && probe.absentTools.length > 0 ? (
+        <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
+          Auf diesem Host nicht vorhanden: {probe.absentTools.join(', ')}.
+        </Body>
+      ) : null}
+
       {!probe.running && !everythingFailed && probe.found === 0 ? (
         <Card>
           <EmptyState
             title="Keine umschaltbaren Werkzeuge"
-            hint={`${probe.total - probe.failed} Werkzeuge wurden gefragt, keines meldet eine Fassung.`}
+            hint={
+              probe.failed > 0
+                ? `${probe.total - probe.failed} von ${probe.total} Werkzeugen haben geantwortet, keines davon meldet eine Fassung. Die übrigen blieben stumm.`
+                : `Alle ${probe.total} Werkzeuge wurden gefragt. Keines davon lässt sich hier umschalten — das ist eine Aussage über diesen Host, nicht über uberCTRL.`
+            }
           />
         </Card>
       ) : null}
@@ -176,18 +196,22 @@ export default function ToolsScreen() {
   );
 }
 
-/** A tool with no answer yet — waiting, being asked, or having given up. */
+/** A tool with nothing to configure — waiting, being asked, absent, or mute. */
 function WaitingCard({
   tool,
   state,
 }: {
   tool: string;
-  state: 'queued' | 'asking' | 'failed';
+  state: 'queued' | 'asking' | 'absent' | 'failed';
 }) {
   const theme = useTheme();
 
-  const label =
-    state === 'asking' ? 'wird gefragt' : state === 'failed' ? 'ohne Antwort' : 'wartet';
+  const label = {
+    queued: 'wartet',
+    asking: 'wird gefragt',
+    absent: 'nicht vorhanden',
+    failed: 'ohne Antwort',
+  }[state];
   const color =
     state === 'asking' ? theme.accent : state === 'failed' ? theme.warning : theme.textFaint;
 
