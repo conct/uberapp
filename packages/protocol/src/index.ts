@@ -413,6 +413,64 @@ export interface ToolVersion {
   available: string[];
 }
 
+/**
+ * The tools `uberspace tools version` can switch between.
+ *
+ * Shared rather than agent-private because asking about all of them at once
+ * takes longer than a call may last: the client walks this list one entry at a
+ * time and shows each answer as it arrives, so it has to know the list before
+ * the first answer comes back.
+ */
+export const KNOWN_TOOLS = [
+  'php',
+  'node',
+  'python',
+  'ruby',
+  'erlang',
+  'elixir',
+  'go',
+  'deno',
+  'rust',
+  'java',
+  'postgresql',
+  'mongodb',
+  'redis',
+  'influxdb',
+] as const;
+
+/**
+ * Read one tool's pair of `uberspace tools version` outputs.
+ *
+ * The manual documents both shapes exactly:
+ *
+ *     $ uberspace tools version show node
+ *     Using 'node' version: '20'
+ *
+ *     $ uberspace tools version list node
+ *     - 18
+ *     - 20
+ *     - 22
+ *
+ * The list is a bulleted list, and that is what the old filter missed: it kept
+ * lines matching /^[\d.]+$/, which "- 20" is not. Every tool therefore reported
+ * an empty set of available versions — and since an empty set is not an error,
+ * this looked like a platform where nothing can be switched. Nobody saw it
+ * because until 2026-08-25 no screen called the method at all.
+ */
+export function parseToolVersion(tool: string, show: string, list: string): ToolVersion {
+  const quoted = /version:?\s*'([^']+)'/i.exec(show);
+  const bare = /([\d]+(?:\.[\d]+)*)/.exec(show.trim());
+
+  return {
+    tool,
+    current: quoted?.[1] ?? bare?.[1] ?? null,
+    available: list
+      .split('\n')
+      .map((line) => line.trim().replace(/^[-*•]\s*/, ''))
+      .filter((line) => RE_VERSION.test(line) && /\d/.test(line)),
+  };
+}
+
 export interface DomainInfo {
   domain: string;
 }

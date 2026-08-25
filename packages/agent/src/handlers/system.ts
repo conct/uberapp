@@ -3,7 +3,14 @@
  */
 
 import { loadavg, uptime as osUptime } from 'node:os';
-import type { ProcessInfo, QuotaInfo, SystemInfo, ToolVersion } from '@uberctrl/protocol';
+import {
+  KNOWN_TOOLS,
+  parseToolVersion,
+  type ProcessInfo,
+  type QuotaInfo,
+  type SystemInfo,
+  type ToolVersion,
+} from '@uberctrl/protocol';
 import { AGENT_VERSION } from '../config.js';
 import { run } from '../exec.js';
 import { RpcError, type Handler } from '../rpc.js';
@@ -140,77 +147,62 @@ const processes: Handler = async (_params, ctx) => {
 
 // --- tool versions ---------------------------------------------------------
 
-/**
- * Tools Uberspace lets you switch. Probed individually; misses are skipped,
- * so listing one the host does not offer costs a probe and nothing else.
- * The database entries matter as much as the languages: switching a major
- * PostgreSQL or MongoDB version is the same command.
+/*
+ * The list itself lives in the protocol now: the client walks it one tool at a
+ * time, so it needs the names before the first answer exists. Misses are
+ * skipped, so naming a tool the host does not offer costs a probe and nothing
+ * else. The database entries matter as much as the languages — switching a
+ * major PostgreSQL or MongoDB version is the same command.
  */
-const KNOWN_TOOLS = [
-  'php',
-  'node',
-  'python',
-  'ruby',
-  'erlang',
-  'elixir',
-  'go',
-  'deno',
-  'rust',
-  'java',
-  'postgresql',
-  'mongodb',
-  'redis',
-  'influxdb',
-];
+
+/** Probe one tool, or null when the host does not offer it. */
+async function probeTool(tool: string): Promise<ToolVersion | null> {
+  const [show, list] = await Promise.all([
+    run('uberspace', ['tools', 'version', 'show', tool], { timeoutMs: 30_000 }),
+    run('uberspace', ['tools', 'version', 'list', tool], { timeoutMs: 30_000 }),
+  ]);
+
+  // A tool that is not switchable on this host exits non-zero for both.
+  if (!show.ok && !list.ok) return null;
+
+  return parseToolVersion(tool, show.stdout, list.stdout);
+}
 
 /**
- * How many tools to ask about at once.
+ * Tool versions, one tool at a time or all of them.
  *
- * This used to be all of them: fourteen tools times two subcommands is
- * twenty-eight `uberspace` processes started in the same tick, each a Python
- * program on a host shared with strangers. The first real call against a host
- * died with "Command timed out after 15000ms" — self-inflicted, and it took
- * the whole answer with it, because one rejected promise fails a Promise.all.
- * Three at a time keeps the host civil and still finishes in a few seconds.
+ * Asking for all fourteen in one call does not fit in a call. The first
+ * attempt started twenty-eight `uberspace` processes in the same tick — each a
+ * Python program, on a host shared with strangers — and died with "Command
+ * timed out after 15000ms". Three at a time survived that and then hit the
+ * ceiling above it: the client gives a call sixty seconds, and fourteen tools
+ * take longer than that on a busy host.
+ *
+ * So the client passes a `tool` and walks the list itself, showing each answer
+ * as it lands. The all-at-once path stays for callers that want one blob and
+ * can wait; it is no longer what the app does.
  */
-const TOOL_PROBE_BATCH = 3;
+const toolVersions: Handler = async (params) => {
+  const p = asObject(params ?? {});
+  const only = p['tool'] === undefined ? null : toolName(p);
 
-const toolVersions: Handler = async () => {
+  if (only !== null) {
+    const found = await probeTool(only);
+    return found === null ? [] : [found];
+  }
+
   const versions: ToolVersion[] = [];
   let answered = 0;
 
-  for (let index = 0; index < KNOWN_TOOLS.length; index += TOOL_PROBE_BATCH) {
-    const batch = KNOWN_TOOLS.slice(index, index + TOOL_PROBE_BATCH);
-
-    await Promise.all(
-      batch.map(async (tool) => {
-        let show, list;
-        try {
-          [show, list] = await Promise.all([
-            run('uberspace', ['tools', 'version', 'show', tool], { timeoutMs: 30_000 }),
-            run('uberspace', ['tools', 'version', 'list', tool], { timeoutMs: 30_000 }),
-          ]);
-        } catch {
-          // A timeout or a failure to spawn rejects. That says nothing about
-          // the other thirteen tools, so it stays this tool's problem.
-          return;
-        }
-
-        answered += 1;
-
-        // A tool that is not switchable on this host exits non-zero for both.
-        if (!show.ok && !list.ok) return;
-
-        versions.push({
-          tool,
-          current: extractVersion(show.stdout) ?? null,
-          available: list.stdout
-            .split('\n')
-            .map((line) => line.trim())
-            .filter((line) => /^[\d.]+$/.test(line)),
-        });
-      }),
-    );
+  for (const tool of KNOWN_TOOLS) {
+    try {
+      const found = await probeTool(tool);
+      answered += 1;
+      if (found !== null) versions.push(found);
+    } catch {
+      // A timeout or a failure to spawn rejects, and says nothing about the
+      // other thirteen. It stays this tool's problem.
+    }
   }
 
   // Not one of the fourteen could be asked. Returning [] here would render as
@@ -225,13 +217,6 @@ const toolVersions: Handler = async () => {
   return versions.sort((a, b) => a.tool.localeCompare(b.tool));
 };
 
-/** "Using 'php' version: '8.2'" -> "8.2" */
-function extractVersion(stdout: string): string | undefined {
-  const quoted = /version:?\s*'([^']+)'/i.exec(stdout);
-  if (quoted?.[1]) return quoted[1];
-  const bare = /([\d]+(?:\.[\d]+)*)/.exec(stdout.trim());
-  return bare?.[1];
-}
 
 const setToolVersion: Handler = async (params) => {
   const p = asObject(params);

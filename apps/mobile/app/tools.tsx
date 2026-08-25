@@ -6,19 +6,25 @@
  * so the only parser in the project that was never checked against real CLI
  * output had no way of being checked at all. This screen is that way.
  *
- * A note on the empty case, because it is the whole reason this is worth
- * building: `uberspace tools version show|list` is parsed with a regex, and a
- * tool whose output no longer matches produces an entry with `current: null`
- * and no available versions — not an error. Rendered naively that reads as
- * "this host has no switchable tools", which is indistinguishable from a
- * platform that dropped the feature. So both empty cases say what they are.
+ * It asks tool by tool rather than all at once, and that is not a preference.
+ * Fourteen tools times two subcommands is twenty-eight `uberspace` processes;
+ * started together they time out, and started three at a time they still take
+ * longer than the sixty seconds a call is given. One tool per call fits, and
+ * has the better manner besides: the first answer appears in a second or two
+ * instead of everything arriving at once or not at all.
+ *
+ * On the empty case, because it is the whole reason this is worth building: a
+ * tool that answers nothing and a host that never answered produce the same
+ * empty list, and only one of them is a statement about the platform. So the
+ * two are counted separately and said apart.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import type { ToolVersion } from '@uberctrl/protocol';
+import { KNOWN_TOOLS, type ToolVersion } from '@uberctrl/protocol';
 
-import { useMutation, useQuery } from '../src/api/hooks';
+import { client } from '../src/api/client';
+import { useConnection, useMutation } from '../src/api/hooks';
 import {
   Badge,
   Body,
@@ -36,58 +42,132 @@ import {
 import { ScreenScroll } from '../src/ui/Screen';
 import { useTheme } from '../src/ui/theme';
 
+interface Probe {
+  found: ToolVersion[];
+  failed: string[];
+  done: number;
+  running: boolean;
+}
+
+const EMPTY: Probe = { found: [], failed: [], done: 0, running: false };
+
+/** Walk the known tools one call at a time, publishing answers as they land. */
+function useToolProbe(): Probe & { total: number; retry: () => void } {
+  const connection = useConnection();
+  const ready = connection.state === 'ready';
+  const [probe, setProbe] = useState<Probe>(EMPTY);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!ready) return;
+
+    let cancelled = false;
+    setProbe({ ...EMPTY, running: true });
+
+    void (async () => {
+      for (const tool of KNOWN_TOOLS) {
+        if (cancelled) return;
+        try {
+          const result = await client.call<ToolVersion[]>('system.toolVersions', { tool });
+          if (cancelled) return;
+          setProbe((current) => ({
+            ...current,
+            found: [...current.found, ...result],
+            done: current.done + 1,
+          }));
+        } catch {
+          if (cancelled) return;
+          // One tool that will not answer says nothing about the next.
+          setProbe((current) => ({
+            ...current,
+            failed: [...current.failed, tool],
+            done: current.done + 1,
+          }));
+        }
+      }
+      if (!cancelled) setProbe((current) => ({ ...current, running: false }));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, attempt]);
+
+  return {
+    ...probe,
+    total: KNOWN_TOOLS.length,
+    retry: () => setAttempt((value) => value + 1),
+  };
+}
+
 export default function ToolsScreen() {
-  const tools = useQuery<ToolVersion[]>('system.toolVersions');
+  const theme = useTheme();
+  const probe = useToolProbe();
+
+  const everythingFailed = !probe.running && probe.failed.length === probe.total;
 
   return (
     <ScreenScroll>
       <View style={{ gap: spacing.xs }}>
         <Body muted>Sprachfassungen dieses Kontos</Body>
+        {probe.running ? (
+          <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
+            Geprüft: {probe.done} von {probe.total}. Jedes Werkzeug ist ein eigener Aufruf auf dem
+            Host.
+          </Body>
+        ) : null}
       </View>
 
-      {tools.error ? <ErrorBanner message={tools.error} onRetry={tools.refresh} /> : null}
+      {probe.found.map((tool) => (
+        <ToolCard key={tool.tool} tool={tool} />
+      ))}
 
-      {tools.loading ? (
+      {probe.running && probe.found.length === 0 ? (
         <Card>
           <Loading label="Wird abgefragt…" />
         </Card>
-      ) : tools.data && tools.data.length > 0 ? (
-        tools.data.map((tool) => <ToolCard key={tool.tool} tool={tool} onChanged={tools.refresh} />)
-      ) : tools.data ? (
+      ) : null}
+
+      {everythingFailed ? (
+        <ErrorBanner
+          message="Kein einziges Werkzeug hat geantwortet — der Host ist zu langsam, oder die uberspace-CLI fehlt."
+          onRetry={probe.retry}
+        />
+      ) : null}
+
+      {!probe.running && !everythingFailed && probe.found.length === 0 ? (
         <Card>
           <EmptyState
             title="Keine umschaltbaren Werkzeuge"
-            hint={
-              'Auf diesem Host meldet uberspace für keines der bekannten Werkzeuge eine Fassung. ' +
-              'Das ist auch das Bild, das entsteht, wenn sich die Ausgabe der CLI geändert hat — ' +
-              'in dem Fall liest der Agent sie nicht mehr, statt zu scheitern.'
-            }
+            hint={`${probe.total - probe.failed.length} Werkzeuge wurden gefragt, keines meldet eine Fassung.`}
           />
         </Card>
+      ) : null}
+
+      {!probe.running && probe.failed.length > 0 && !everythingFailed ? (
+        <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
+          Ohne Antwort geblieben: {probe.failed.join(', ')}.
+        </Body>
       ) : null}
     </ScreenScroll>
   );
 }
 
-function ToolCard({ tool, onChanged }: { tool: ToolVersion; onChanged: () => void }) {
+function ToolCard({ tool }: { tool: ToolVersion }) {
   const theme = useTheme();
   const [chosen, setChosen] = useState<string | null>(null);
+  const [current, setCurrent] = useState(tool.current);
 
   const set = useMutation<{ tool: string; version: string }>('system.setToolVersion', {
-    onSuccess: onChanged,
+    onSuccess: () => setCurrent(chosen),
   });
   const restart = useMutation<{ tool: string }>('tools.restart');
-
-  const target = chosen ?? tool.current;
 
   return (
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <SectionTitle>{tool.tool}</SectionTitle>
-        <Badge
-          label={tool.current ?? 'unbekannt'}
-          color={tool.current ? theme.success : theme.warning}
-        />
+        <Badge label={current ?? 'unbekannt'} color={current ? theme.success : theme.warning} />
       </View>
 
       {set.error ? <ErrorBanner message={set.error} /> : null}
@@ -99,14 +179,14 @@ function ToolCard({ tool, onChanged }: { tool: ToolVersion; onChanged: () => voi
         <>
           <ChoiceGroup
             options={tool.available.map((version) => ({ value: version, label: version }))}
-            value={target ?? ''}
+            value={chosen ?? current ?? ''}
             onChange={setChosen}
           />
           <Button
             label="Fassung übernehmen"
             variant="primary"
             loading={set.pending}
-            disabled={!chosen || chosen === tool.current || set.pending}
+            disabled={!chosen || chosen === current || set.pending}
             onPress={() => {
               if (!chosen) return;
               void set.run({ tool: tool.tool, version: chosen }).catch(() => {});
