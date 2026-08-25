@@ -9,9 +9,13 @@
  * It asks tool by tool rather than all at once, and that is not a preference.
  * Fourteen tools times two subcommands is twenty-eight `uberspace` processes;
  * started together they time out, and started three at a time they still take
- * longer than the sixty seconds a call is given. One tool per call fits, and
- * has the better manner besides: the first answer appears in a second or two
- * instead of everything arriving at once or not at all.
+ * longer than the sixty seconds a call is given. One tool per call fits.
+ *
+ * It is slow either way — measured against a real host on 2026-08-25, roughly
+ * forty seconds per tool, so eight minutes for all fourteen. That is why every
+ * tool has a card from the first frame rather than appearing when it answers:
+ * a screen that shows nothing for a minute is how a hung screen looks, and the
+ * difference has to be visible without waiting to find out.
  *
  * On the empty case, because it is the whole reason this is worth building: a
  * tool that answers nothing and a host that never answered produce the same
@@ -20,7 +24,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { KNOWN_TOOLS, type ToolVersion } from '@uberctrl/protocol';
 
 import { client } from '../src/api/client';
@@ -33,7 +37,6 @@ import {
   ChoiceGroup,
   EmptyState,
   ErrorBanner,
-  Loading,
   Mono,
   OutputBlock,
   SectionTitle,
@@ -42,50 +45,62 @@ import {
 import { ScreenScroll } from '../src/ui/Screen';
 import { useTheme } from '../src/ui/theme';
 
-interface Probe {
-  found: ToolVersion[];
-  failed: string[];
-  done: number;
-  running: boolean;
-}
+/**
+ * What is known about one tool at this moment.
+ *
+ * 'queued' and 'asking' both mean "no answer yet" and are kept apart on
+ * purpose: at roughly forty seconds a tool, a screen that only says "loading"
+ * for eight minutes is indistinguishable from one that has hung. Naming the
+ * tool currently being asked turns the wait into progress you can watch.
+ */
+type ToolState =
+  | { state: 'queued' }
+  | { state: 'asking' }
+  | { state: 'found'; version: ToolVersion }
+  | { state: 'absent' }
+  | { state: 'failed' };
 
-const EMPTY: Probe = { found: [], failed: [], done: 0, running: false };
+type Probe = Record<string, ToolState>;
+
+const QUEUED: Probe = Object.fromEntries(
+  KNOWN_TOOLS.map((tool) => [tool, { state: 'queued' } as ToolState]),
+);
 
 /** Walk the known tools one call at a time, publishing answers as they land. */
-function useToolProbe(): Probe & { total: number; retry: () => void } {
+function useToolProbe() {
   const connection = useConnection();
   const ready = connection.state === 'ready';
-  const [probe, setProbe] = useState<Probe>(EMPTY);
+  const [probe, setProbe] = useState<Probe>(QUEUED);
+  const [running, setRunning] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!ready) return;
 
     let cancelled = false;
-    setProbe({ ...EMPTY, running: true });
+    setProbe(QUEUED);
+    setRunning(true);
+
+    const mark = (tool: string, state: ToolState) =>
+      setProbe((current) => ({ ...current, [tool]: state }));
 
     void (async () => {
       for (const tool of KNOWN_TOOLS) {
         if (cancelled) return;
+        mark(tool, { state: 'asking' });
         try {
           const result = await client.call<ToolVersion[]>('system.toolVersions', { tool });
           if (cancelled) return;
-          setProbe((current) => ({
-            ...current,
-            found: [...current.found, ...result],
-            done: current.done + 1,
-          }));
+          // An empty array is the agent saying this host does not offer the
+          // tool — which is an answer, not a failure.
+          mark(tool, result[0] ? { state: 'found', version: result[0] } : { state: 'absent' });
         } catch {
           if (cancelled) return;
           // One tool that will not answer says nothing about the next.
-          setProbe((current) => ({
-            ...current,
-            failed: [...current.failed, tool],
-            done: current.done + 1,
-          }));
+          mark(tool, { state: 'failed' });
         }
       }
-      if (!cancelled) setProbe((current) => ({ ...current, running: false }));
+      if (!cancelled) setRunning(false);
     })();
 
     return () => {
@@ -93,9 +108,16 @@ function useToolProbe(): Probe & { total: number; retry: () => void } {
     };
   }, [ready, attempt]);
 
+  const states = KNOWN_TOOLS.map((tool) => probe[tool] ?? { state: 'queued' });
+  const count = (state: ToolState['state']) => states.filter((s) => s.state === state).length;
+
   return {
-    ...probe,
+    probe,
+    running,
     total: KNOWN_TOOLS.length,
+    pending: count('queued') + count('asking'),
+    found: count('found'),
+    failed: count('failed'),
     retry: () => setAttempt((value) => value + 1),
   };
 }
@@ -104,29 +126,19 @@ export default function ToolsScreen() {
   const theme = useTheme();
   const probe = useToolProbe();
 
-  const everythingFailed = !probe.running && probe.failed.length === probe.total;
+  const everythingFailed = !probe.running && probe.failed === probe.total;
+  const answered = probe.total - probe.pending;
 
   return (
     <ScreenScroll>
       <View style={{ gap: spacing.xs }}>
         <Body muted>Sprachfassungen dieses Kontos</Body>
-        {probe.running ? (
-          <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
-            Geprüft: {probe.done} von {probe.total}. Jedes Werkzeug ist ein eigener Aufruf auf dem
-            Host.
-          </Body>
-        ) : null}
+        <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
+          {probe.running
+            ? `Geprüft: ${answered} von ${probe.total}. Jedes Werkzeug ist ein eigener Aufruf auf dem Host und dauert bis zu einer Minute.`
+            : `${probe.found} von ${probe.total} Werkzeugen sind auf diesem Host umschaltbar.`}
+        </Body>
       </View>
-
-      {probe.found.map((tool) => (
-        <ToolCard key={tool.tool} tool={tool} />
-      ))}
-
-      {probe.running && probe.found.length === 0 ? (
-        <Card>
-          <Loading label="Wird abgefragt…" />
-        </Card>
-      ) : null}
 
       {everythingFailed ? (
         <ErrorBanner
@@ -135,21 +147,60 @@ export default function ToolsScreen() {
         />
       ) : null}
 
-      {!probe.running && !everythingFailed && probe.found.length === 0 ? (
+      {/*
+        Every tool gets a card from the first frame, in the order they are
+        asked. Before this the screen showed nothing at all until the first
+        answer came back, which on this host is most of a minute — and an
+        empty screen is how a hang looks.
+      */}
+      {KNOWN_TOOLS.map((tool) => {
+        const entry = probe.probe[tool] ?? { state: 'queued' as const };
+
+        if (entry.state === 'found') return <ToolCard key={tool} tool={entry.version} />;
+        if (entry.state === 'absent') return null;
+        if (entry.state === 'failed') {
+          return everythingFailed ? null : <WaitingCard key={tool} tool={tool} state="failed" />;
+        }
+        return <WaitingCard key={tool} tool={tool} state={entry.state} />;
+      })}
+
+      {!probe.running && !everythingFailed && probe.found === 0 ? (
         <Card>
           <EmptyState
             title="Keine umschaltbaren Werkzeuge"
-            hint={`${probe.total - probe.failed.length} Werkzeuge wurden gefragt, keines meldet eine Fassung.`}
+            hint={`${probe.total - probe.failed} Werkzeuge wurden gefragt, keines meldet eine Fassung.`}
           />
         </Card>
       ) : null}
-
-      {!probe.running && probe.failed.length > 0 && !everythingFailed ? (
-        <Body muted style={{ fontSize: 12, color: theme.textFaint }}>
-          Ohne Antwort geblieben: {probe.failed.join(', ')}.
-        </Body>
-      ) : null}
     </ScreenScroll>
+  );
+}
+
+/** A tool with no answer yet — waiting, being asked, or having given up. */
+function WaitingCard({
+  tool,
+  state,
+}: {
+  tool: string;
+  state: 'queued' | 'asking' | 'failed';
+}) {
+  const theme = useTheme();
+
+  const label =
+    state === 'asking' ? 'wird gefragt' : state === 'failed' ? 'ohne Antwort' : 'wartet';
+  const color =
+    state === 'asking' ? theme.accent : state === 'failed' ? theme.warning : theme.textFaint;
+
+  return (
+    <Card style={{ opacity: state === 'asking' ? 1 : 0.6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <SectionTitle>{tool}</SectionTitle>
+        <Badge label={label} color={color} />
+        {/* The Loading component carries its own generous padding, which in a
+            single row reads as a gap rather than a spinner. */}
+        {state === 'asking' ? <ActivityIndicator color={theme.accent} size="small" /> : null}
+      </View>
+    </Card>
   );
 }
 
