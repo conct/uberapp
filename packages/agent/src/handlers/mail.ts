@@ -114,6 +114,24 @@ async function requirePty(): Promise<void> {
 }
 
 /**
+ * Did the CLI complain, even though it exited zero?
+ *
+ * The exit status is the authority; this is a net under it, because the two
+ * password commands run through a pty and their status was never confirmed to
+ * survive that. The net used to include the bare word "score", which is the
+ * one word that cannot carry a verdict: `uberspace mail user add` states its
+ * own rule — "The password must have a zxcvbn score of 4." — on the way past,
+ * whether or not the password was accepted. A mailbox that had just been
+ * created was therefore reported as a failure.
+ *
+ * A rejection says more than the number. If it ever says only the number, the
+ * exit status still catches it.
+ */
+export function rejectedByCli(output: string): boolean {
+  return /error|failed|too weak/i.test(output);
+}
+
+/**
  * Create a mailbox. Name and password arrive in a single call and are fed to
  * the two consecutive prompts.
  */
@@ -132,7 +150,7 @@ const usersAdd: Handler = async (params) => {
 
   const output = withoutPrompts(redact(result.stdout + result.stderr, password));
 
-  if (!result.ok || /error|failed|too weak|score/i.test(output)) {
+  if (!result.ok || rejectedByCli(output)) {
     throw RpcError.commandFailed(failureReason(output, 'Could not create mailbox'), output);
   }
   return { name, output };
@@ -152,7 +170,7 @@ const usersPassword: Handler = async (params) => {
 
   const output = withoutPrompts(redact(result.stdout + result.stderr, password));
 
-  if (!result.ok || /error|failed|too weak|score/i.test(output)) {
+  if (!result.ok || rejectedByCli(output)) {
     throw RpcError.commandFailed(failureReason(output, 'Could not change password'), output);
   }
   return { name, output };

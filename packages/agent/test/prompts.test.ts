@@ -11,6 +11,7 @@ import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
 
 import { withoutPrompts } from '../src/exec.js';
+import { rejectedByCli } from '../src/handlers/mail.js';
 
 describe('withoutPrompts', () => {
   it('removes the prompts the agent answered', () => {
@@ -50,5 +51,31 @@ describe('withoutPrompts', () => {
 
   it('returns nothing when there was nothing but prompts', () => {
     assert.equal(withoutPrompts('Enter a password for the mailbox: \nConfirm your password: '), '');
+  });
+});
+
+describe('rejectedByCli', () => {
+  it('does not read the stated rule as a verdict', () => {
+    // Exactly the sentence the previous check tripped over: the CLI naming
+    // its own requirement, next to the line that says the mailbox exists.
+    const output = [
+      'The password must have a zxcvbn score of 4.',
+      'The mailbox post@example.org has been created.',
+    ].join('\n');
+    assert.equal(rejectedByCli(output), false);
+  });
+
+  it('still catches a password the CLI turned down', () => {
+    for (const output of [
+      'Your password was too weak.',
+      'Error: could not create mailbox',
+      'creating the mailbox failed',
+    ]) {
+      assert.equal(rejectedByCli(output), true, output);
+    }
+  });
+
+  it('says nothing about ordinary success', () => {
+    assert.equal(rejectedByCli('The mailbox post@example.org has been created.'), false);
   });
 });
