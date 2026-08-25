@@ -102,7 +102,9 @@ export default function RootLayout() {
         <Stack.Screen name="orders" options={{ title: 'Bestellungen' }} />
         <Stack.Screen name="mail-rules" options={{ title: 'Regeln & Filter' }} />
         <Stack.Screen name="web-extras" options={{ title: 'Web-Details' }} />
+        <Stack.Screen name="web-log/[kind]" options={{ title: 'Web-Log' }} />
         <Stack.Screen name="diagnostics" options={{ title: 'Diagnose' }} />
+        <Stack.Screen name="tools" options={{ title: 'Werkzeuge' }} />
         <Stack.Screen name="cron" options={{ title: 'Cron' }} />
         <Stack.Screen name="pair" options={{ title: 'Gerät koppeln' }} />
         <Stack.Screen name="setup-ssh" options={{ title: 'Einfache Einrichtung' }} />

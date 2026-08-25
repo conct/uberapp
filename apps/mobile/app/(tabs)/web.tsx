@@ -382,14 +382,26 @@ function LogsCard({
               <Body>{LOG_LABELS[entry.kind] ?? entry.kind}</Body>
               <Mono style={{ color: theme.textFaint, fontSize: 11 }}>{entry.path}</Mono>
             </View>
-            <Button
-              label={entry.enabled ? 'An' : 'Aus'}
-              variant={entry.enabled ? 'primary' : 'secondary'}
-              disabled={toggle.pending}
-              onPress={() => {
-                void toggle.run({ kind: entry.kind, enabled: !entry.enabled }).catch(() => {});
-              }}
-            />
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              {/*
+                Only offered for a log that is switched on. Tailing a disabled
+                log reaches a file apache is not writing, which looks exactly
+                like a quiet site.
+              */}
+              {entry.enabled ? (
+                <Link href={{ pathname: '/web-log/[kind]', params: { kind: entry.kind } }} asChild>
+                  <Button label="Mitlesen" onPress={() => {}} />
+                </Link>
+              ) : null}
+              <Button
+                label={entry.enabled ? 'An' : 'Aus'}
+                variant={entry.enabled ? 'primary' : 'secondary'}
+                disabled={toggle.pending}
+                onPress={() => {
+                  void toggle.run({ kind: entry.kind, enabled: !entry.enabled }).catch(() => {});
+                }}
+              />
+            </View>
           </View>
         ))
       )}

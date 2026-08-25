@@ -41,10 +41,18 @@ export default function FilesScreen() {
   const [showHidden, setShowHidden] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<FileEntry | null>(null);
+  const [toRename, setToRename] = useState<FileEntry | null>(null);
+  const [renameTo, setRenameTo] = useState('');
   const [newFolder, setNewFolder] = useState('');
 
   const listing = useQuery<Listing>('files.list', { path, hidden: showHidden });
   const remove = useMutation('files.remove', { onSuccess: () => listing.refresh() });
+  const move = useMutation('files.move', {
+    onSuccess: () => {
+      setToRename(null);
+      listing.refresh();
+    },
+  });
   const mkdir = useMutation('files.mkdir', {
     onSuccess: () => {
       setNewFolder('');
@@ -77,6 +85,43 @@ export default function FilesScreen() {
       {remove.error ? <ErrorBanner message={remove.error} /> : null}
       {mkdir.error ? <ErrorBanner message={mkdir.error} /> : null}
 
+      {/*
+        Renaming gets its own card rather than a dialog: it needs a text field
+        with the old name already in it, and the app has no dialog that takes
+        input. The card appears where the eye already is, directly above the
+        listing it is about.
+      */}
+      {toRename ? (
+        <Card>
+          <SectionTitle>Umbenennen</SectionTitle>
+          {move.error ? <ErrorBanner message={move.error} /> : null}
+          <Mono style={{ color: theme.textFaint, fontSize: 11 }}>{toRename.path}</Mono>
+          <Field label="Neuer Name" value={renameTo} onChangeText={setRenameTo} />
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <Button
+              label="Abbrechen"
+              onPress={() => setToRename(null)}
+              style={{ flex: 1 }}
+            />
+            <Button
+              label="Umbenennen"
+              variant="primary"
+              loading={move.pending}
+              disabled={!renameTo.trim() || renameTo.trim() === toRename.name || move.pending}
+              style={{ flex: 1 }}
+              onPress={() => {
+                void move
+                  .run({
+                    from: toRename.path,
+                    to: joinPath(currentPath, renameTo.trim()),
+                  })
+                  .catch(() => {});
+              }}
+            />
+          </View>
+        </Card>
+      ) : null}
+
       <Card>
         <SectionTitle>Backup</SectionTitle>
         <Body muted>
@@ -107,6 +152,10 @@ export default function FilesScreen() {
                 } else {
                   setViewing(entry.path);
                 }
+              }}
+              onRename={() => {
+                setToRename(entry);
+                setRenameTo(entry.name);
               }}
               onDelete={() => setToDelete(entry)}
             />
@@ -163,10 +212,12 @@ export default function FilesScreen() {
 function FileRow({
   entry,
   onOpen,
+  onRename,
   onDelete,
 }: {
   entry: FileEntry;
   onOpen: () => void;
+  onRename: () => void;
   onDelete: () => void;
 }) {
   const theme = useTheme();
@@ -197,6 +248,15 @@ function FileRow({
             {entry.type === 'dir' ? entry.mode : `${formatBytes(entry.size)} · ${entry.mode}`}
           </Mono>
         </View>
+      </Pressable>
+      <Pressable
+        onPress={onRename}
+        accessibilityRole="button"
+        accessibilityLabel={`${entry.name} umbenennen`}
+        hitSlop={8}
+        style={{ padding: spacing.sm }}
+      >
+        <Ionicons name="pencil-outline" size={18} color={theme.textMuted} />
       </Pressable>
       <Pressable
         onPress={onDelete}

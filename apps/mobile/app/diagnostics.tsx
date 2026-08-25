@@ -12,6 +12,7 @@ import {
   BACKUP_EXCLUDED_DIRS,
   type DeletedFile,
   type DiskUsageEntry,
+  type ListenerInfo,
   type MemoryUsage,
 } from '@uberctrl/protocol';
 
@@ -40,14 +41,80 @@ export default function DiagnosticsScreen() {
   return (
     <ScreenScroll>
       <View style={{ gap: spacing.xs }}>
-        <Body muted>Speicher, Arbeitsspeicher und Login-Shell</Body>
+        <Body muted>Speicher, Arbeitsspeicher, offene Sockets und Login-Shell</Body>
       </View>
 
       <MemoryCard />
       <DiskCard />
       <DeletedCard />
+      <ListenersCard />
       <ShellCard />
     </ScreenScroll>
+  );
+}
+
+/**
+ * Everything this account has listening, whether or not a firewall port leads
+ * to it.
+ *
+ * The ports screen answers the other direction — "port 40123 is open, is
+ * anything behind it?" — and so only ever shows sockets that already have a
+ * port. The failure this card is for is the reverse and far more common: a
+ * service is running, it is listening, and it is unreachable because it bound
+ * 127.0.0.1. From the ports screen that looks like an empty port; here it
+ * looks like what it is.
+ */
+function ListenersCard() {
+  const theme = useTheme();
+  const listeners = useQuery<ListenerInfo[]>('system.listeners');
+
+  return (
+    <Card>
+      <SectionTitle>Was lauscht</SectionTitle>
+      {listeners.error ? (
+        <ErrorBanner message={listeners.error} onRetry={listeners.refresh} />
+      ) : null}
+
+      {listeners.loading ? (
+        <Loading />
+      ) : listeners.data && listeners.data.length > 0 ? (
+        <>
+          <Body muted style={{ fontSize: 13 }}>
+            Nur ein Socket auf <Mono>0.0.0.0</Mono> oder <Mono>[::]</Mono> lässt sich über einen
+            Port nach außen freigeben. Was auf <Mono>127.0.0.1</Mono> lauscht, erreicht von außen
+            niemand — auch nicht mit offenem Port.
+          </Body>
+          {listeners.data.map((socket) => (
+            <View
+              key={`${socket.protocol}-${socket.address}-${socket.port}`}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.sm,
+                paddingVertical: spacing.xs,
+              }}
+            >
+              <Badge
+                label={socket.wildcard ? 'offen' : 'lokal'}
+                color={socket.wildcard ? theme.success : theme.textFaint}
+              />
+              <Mono style={{ flex: 1 }} numberOfLines={1}>
+                {socket.address}:{socket.port}
+              </Mono>
+              <Body muted style={{ fontSize: 12 }}>
+                {socket.process || '—'}
+                {socket.pid === null ? '' : ` (${socket.pid})`}
+              </Body>
+            </View>
+          ))}
+        </>
+      ) : listeners.data ? (
+        <EmptyState
+          title="Nichts lauscht"
+          hint="Kein Prozess dieses Kontos hat einen Socket offen."
+        />
+      ) : null}
+    </Card>
   );
 }
 

@@ -50,6 +50,9 @@ export default function DatabasesScreen() {
   const [suffix, setSuffix] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dropping, setDropping] = useState<DatabaseInfo | null>(null);
+  const [importing, setImporting] = useState<DatabaseInfo | null>(null);
+  const [importPath, setImportPath] = useState('');
+  const [confirmImport, setConfirmImport] = useState(false);
 
   const create = useMutation<{ database: string }>('db.mysql.create', {
     onSuccess: () => {
@@ -131,9 +134,47 @@ export default function DatabasesScreen() {
               job.start('db.mysql.dump', { database: database.name, path }, `Dump ${database.name}`)
             }
             onDrop={() => setDropping(database)}
+            onImport={() => {
+              setImporting(database);
+              setImportPath('');
+            }}
           />
         ))
       )}
+
+      {/*
+        Importing needs a path typed in, so it gets a card rather than a
+        dialog — the same shape the rename in the files tab uses. The dump has
+        to be somewhere under $HOME; the agent refuses anything outside it, and
+        saying so here saves a round trip.
+      */}
+      {importing ? (
+        <Card>
+          <SectionTitle>Dump einspielen</SectionTitle>
+          <Body muted style={{ fontSize: 13 }}>
+            Wird auf <Mono>{importing.name}</Mono> angewendet. Bestehende Tabellen gleichen Namens
+            überschreibt der Dump, alle anderen bleiben stehen — das Ergebnis ist beides gemischt,
+            keine saubere Kopie.
+          </Body>
+          <Field
+            label="Datei"
+            value={importPath}
+            onChangeText={setImportPath}
+            placeholder={`${home}/${importing.name}-2026-01-01.sql`}
+            hint="Muss unter deinem Home liegen. .sql oder .sql.xz."
+          />
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <Button label="Abbrechen" onPress={() => setImporting(null)} style={{ flex: 1 }} />
+            <Button
+              label="Einspielen"
+              variant="danger"
+              disabled={!importPath.trim() || job.active}
+              onPress={() => setConfirmImport(true)}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </Card>
+      ) : null}
 
       {job.label ? (
         <Card>
@@ -144,6 +185,32 @@ export default function DatabasesScreen() {
           {job.active ? <Button label="Abbrechen" onPress={job.cancel} /> : null}
         </Card>
       ) : null}
+
+      <ConfirmDialog
+        visible={confirmImport && importing !== null}
+        title="Dump einspielen"
+        message={
+          importing
+            ? `Der Dump wird in "${importing.name}" eingespielt. Was er enthält, ersetzt gleichnamige Tabellen; rückgängig macht das nur ein eigener Dump von vorher.`
+            : ''
+        }
+        confirmLabel="Einspielen"
+        destructive
+        onConfirm={() => {
+          const target = importing;
+          const path = importPath.trim();
+          setConfirmImport(false);
+          setImporting(null);
+          if (target) {
+            job.start(
+              'db.mysql.import',
+              { database: target.name, path },
+              `Einspielen in ${target.name}`,
+            );
+          }
+        }}
+        onCancel={() => setConfirmImport(false)}
+      />
 
       <ConfirmDialog
         visible={dropping !== null}
@@ -179,6 +246,7 @@ function DatabaseCard({
   onToggle,
   onDump,
   onDrop,
+  onImport,
 }: {
   database: DatabaseInfo;
   home: string;
@@ -187,6 +255,7 @@ function DatabaseCard({
   onToggle: () => void;
   onDump: (path: string) => void;
   onDrop: () => void;
+  onImport: () => void;
 }) {
   const theme = useTheme();
   const tables = useQuery<{ tables: TableInfo[] }>(
@@ -223,6 +292,12 @@ function DatabaseCard({
         <Button
           label="Dump"
           onPress={() => onDump(`${home}/${database.name}-${today()}.sql`)}
+          disabled={busy}
+          style={{ flexGrow: 1, flexBasis: 110 }}
+        />
+        <Button
+          label="Einspielen"
+          onPress={onImport}
           disabled={busy}
           style={{ flexGrow: 1, flexBasis: 110 }}
         />
